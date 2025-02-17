@@ -134,7 +134,7 @@
 
 
 const express = require("express");
-const sql = require("mssql");
+const mysql = require("mysql2");
 const app = express();
 const cors = require('cors');
 const fs = require('fs');
@@ -155,32 +155,55 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Configuration for MSSQL
-const config = {
-    server: process.env.SERVER,
-    database: process.env.DATABASE,
+// const config = {
+//     server: process.env.SERVER,
+//     database: process.env.DATABASE,
+//     user: "ayush",
+//     password: "ayush@12345",
+//     options: {
+//         encrypt: true, // Use encryption
+//         trustServerCertificate: true, // Add this line for development
+//     },
+//     driver: "msnodesqlv8",
+//     // driver: "ODBC Driver 17 for SQL Server",
+
+//     // connectionTimeout: 30000,
+//     // requestTimeout: 30000,
+// };
+
+// // Connect to the database and store the pool connection
+// let pool;
+// sql.connect(config)
+//     .then((p) => {
+//         console.log("Database Connected");
+//         pool = p;
+//     })
+//     .catch((err) => {
+//         console.error("Database Connection Failed:", err);
+//     });
+
+
+
+
+
+const connection = mysql.createConnection({
+    host: "deepaspheresolutions.co.in",   // Example: "localhost" or a remote host
     user: "ayush",
-    password: "ayush@12345",
-    options: {
-        encrypt: true, // Use encryption
-        trustServerCertificate: true, // Add this line for development
-    },
-    driver: "msnodesqlv8",
-    // driver: "ODBC Driver 17 for SQL Server",
+    password: "ayush@123!@#",
+    database: "eximtrac"
+});
 
-    // connectionTimeout: 30000,
-    // requestTimeout: 30000,
-};
+connection.connect((err) => {
+    if (err) {
+        console.error("Error connecting to MySQL:", err);
+        return;
+    }
+    console.log("Connected to MySQL database");
+});
 
-// Connect to the database and store the pool connection
-let pool;
-sql.connect(config)
-    .then((p) => {
-        console.log("Database Connected");
-        pool = p;
-    })
-    .catch((err) => {
-        console.error("Database Connection Failed:", err);
-    });
+module.exports = connection;
+
+
 
 // sql.connect(config)
 //     .then(() => console.log('Connected to SQL Server'))
