@@ -280,123 +280,99 @@ app.get("/GetCategoryandSubCategory", async (req, res) => {
 
 app.get("/GetCategory", async (req, res) => {
     try {
-        if (!pool) {
-            throw new Error("Database connection is not initialized");
-        }
-        const result = await pool.request().query("SELECT DISTINCT CATEGORY AS name FROM cornitos_master");
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const [rows] = await pool.query("SELECT DISTINCT CATEGORY AS name FROM cornitos_master");
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
+// Fetch subcategories
 app.get("/GetSubCategory", async (req, res) => {
     try {
         const { category } = req.query;
-        if (!pool) {
-            throw new Error("Database connection is not initialized");
-        }
-
         let query = "SELECT DISTINCT SUB_CATEGORY FROM cornitos_master";
+        let params = [];
+
         if (category) {
-            query += ` WHERE CATEGORY = '${category}'`;
+            query += " WHERE CATEGORY = ?";
+            params.push(category);
         }
 
-        const result = await pool.request().query(query);
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const [rows] = await pool.query(query, params);
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
+// Fetch brands
 app.get("/GetBrand", async (req, res) => {
     try {
         const { category, subCategory } = req.query;
-        if (!pool) {
-            throw new Error("Database connection is not initialized");
-        }
-
         let query = "SELECT DISTINCT BRAND FROM cornitos_master";
+        let params = [];
+
         if (category || subCategory) {
             query += " WHERE";
             if (category) {
-                query += ` CATEGORY = '${category}'`;
+                query += " CATEGORY = ?";
+                params.push(category);
             }
             if (subCategory) {
-                query += `${category ? " AND" : ""} SUB_CATEGORY = '${subCategory}'`;
+                query += (category ? " AND" : "") + " SUB_CATEGORY = ?";
+                params.push(subCategory);
             }
         }
 
-        const result = await pool.request().query(query);
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const [rows] = await pool.query(query, params);
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
-
-
-
-
+// Fetch category, subcategory, and brand
 app.get("/GetFilter", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
-        const result = await pool.request().query("select distinct CATEGORY, SUB_CATEGORY, BRAND from cornitos_master");
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const [rows] = await pool.query("SELECT DISTINCT CATEGORY, SUB_CATEGORY, BRAND FROM cornitos_master");
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
-app.get("/Get-add-to-container/:userId", authMiddleware, async (req, res) => {
+// Fetch user's added-to-container data
+app.get("/Get-add-to-container/:userId", async (req, res) => {
     try {
-        if (!pool) {
-            throw new Error("Database connection is not initialized");
-        }
+        const { userId } = req.params;
+        const [rows] = await pool.query(`
+            SELECT 
+                tc.TC_ID,
+                tc.Quantity,
+                tc.ProductID,
+                tc.CartonQty,
+                cm.PRODUCT_DESCRIPTION, 
+                cm.CATEGORY,
+                cm.BRAND,
+                cm.SUB_CATEGORY,
+                cm.UNIT,
+                cm.UNIT_PER_CTN,
+                cm.WEIGHT_PER_PKT_GRAMS,
+                tc.UserID,
+                l.username
+            FROM to_container tc
+            INNER JOIN cornitos_master cm ON tc.ProductID = cm.ID
+            INNER JOIN login l ON tc.UserID = l.ID
+            WHERE tc.UserID = ?`,
+            [userId]
+        );
 
-        const userId = req.params.userId;
-
-        if (!userId) {
-            return res.status(400).json({ msg: "UserID is required" });
-        }
-
-        // Query filtered by UserID
-        const result = await pool.request()
-            .input("UserID", userId)
-            .query(`
-                SELECT 
-                    tc.TC_ID,
-                    tc.Quantity,
-                    tc.ProductID,
-                    tc.CartonQty,
-                    cm.PRODUCT_DESCRIPTION, 
-                    cm.CATEGORY,
-                    cm.BRAND,
-                    cm.SUB_CATEGORY,
-                    cm.UNIT,
-                    cm.UNIT_PER_CTN,
-                    cm.WEIGHT_PER_PKT_GRAMS,
-                    tc.UserID,
-                    l.username
-                FROM 
-                    to_container tc
-                INNER JOIN 
-                    cornitos_master cm
-                    ON tc.ProductID = cm.ID
-                INNER JOIN 
-                    login l
-                    ON tc.UserID = l.ID
-                WHERE 
-                    tc.UserID = @UserID;
-            `);
-
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
@@ -404,21 +380,18 @@ app.get("/Get-add-to-container/:userId", authMiddleware, async (req, res) => {
 });
 
 
-app.get("/Get-data-for-order-page/:userId", authMiddleware, async (req, res) => {
-    const { userId } = req.params;
 
+app.get("/Get-data-for-order-page/:userId", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
-        // Execute the SQL query with parameter binding to prevent SQL injection
-        const result = await pool
-            .request()
-            .input("userId", sql.VarChar, userId) // Bind the userId parameter
-            .query(
-                "SELECT DISTINCT OrderID, UploadDate, UserID FROM container_place_enquiry WHERE UserID = @userId"
-            );
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const { userId } = req.params;
+        const [rows] = await pool.query(`
+            SELECT DISTINCT OrderID, UploadDate, UserID 
+            FROM container_place_enquiry 
+            WHERE UserID = ?`,
+            [userId]
+        );
+
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
@@ -426,103 +399,78 @@ app.get("/Get-data-for-order-page/:userId", authMiddleware, async (req, res) => 
 });
 
 
-app.get("/Get-data-for-user-side-enquiry-page/:userId", authMiddleware, async (req, res) => {
-    const { userId } = req.params;
 
+app.get("/Get-data-for-user-side-enquiry-page/:userId", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
+        const { userId } = req.params;
+        const [rows] = await pool.query(`
+            SELECT DISTINCT 
+                cpe.OrderID, 
+                cpe.UploadDate, 
+                cpe.UserID,
+                u.FirstName, 
+                u.LastName, 
+                u.EmailID,
+                u.CompanyName
+            FROM container_place_enquiry cpe
+            JOIN users u ON cpe.UserID = u.UserID
+            WHERE cpe.UserID = ?
+            ORDER BY UploadDate DESC`,
+            [userId]
+        );
 
-        // Execute the SQL query with a join to the users table
-        const result = await pool
-            .request()
-            .input("userId", sql.VarChar, userId) // Bind the userId parameter
-            .query(
-                `SELECT DISTINCT 
-                        cpe.OrderID, 
-                        cpe.UploadDate, 
-                        cpe.UserID,
-                        u.FirstName, 
-                        u.LastName, 
-                        u.EmailID,
-                        u.CompanyName
-                     FROM 
-                        container_place_enquiry cpe
-                     JOIN 
-                        users u ON cpe.UserID = u.UserID
-                     WHERE 
-                        cpe.UserID = @UserID
-                     ORDER BY 
-                        UploadDate DESC`
-            );
-
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
+
+
 
 app.get("/Get-data-for-enquiry-page", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
-
         // Execute the SQL query with a join to the users table
-        const result = await pool
-            .request()
-            .query(
-                `SELECT DISTINCT 
-                    cpe.OrderID, 
-                    cpe.UploadDate, 
-                    cpe.UserID,
-                    u.FirstName, 
-                    u.LastName, 
-                    u.EmailID,
-                    u.CompanyName
-                 FROM 
-                    container_place_enquiry cpe
-                 JOIN 
-                    users u ON cpe.UserID = u.UserID
-                    ORDER BY UploadDate DESC`
-            );
+        const [rows] = await pool.query(`
+            SELECT DISTINCT 
+                cpe.OrderID, 
+                cpe.UploadDate, 
+                cpe.UserID,
+                u.FirstName, 
+                u.LastName, 
+                u.EmailID,
+                u.CompanyName
+            FROM container_place_enquiry cpe
+            JOIN users u ON cpe.UserID = u.UserID
+            ORDER BY cpe.UploadDate DESC
+        `);
 
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
-
 
 app.get("/Get-data-for-admin-dash-enquiry-page", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
-
         // Execute the SQL query with a join to the users table
-        const result = await pool
-            .request()
-            .query(
-                `SELECT DISTINCT TOP 3
-                    cpe.OrderID, 
-                    cpe.UploadDate, 
-                    cpe.UserID,
-                    u.FirstName, 
-                    u.LastName, 
-                    u.EmailID,
-                    u.CompanyName
-                 FROM 
-                    container_place_enquiry cpe
-                 JOIN 
-                    users u ON cpe.UserID = u.UserID
-                    ORDER BY UploadDate DESC`
-            );
+        const [rows] = await pool.query(`
+            SELECT DISTINCT 
+                cpe.OrderID, 
+                cpe.UploadDate, 
+                cpe.UserID,
+                u.FirstName, 
+                u.LastName, 
+                u.EmailID,
+                u.CompanyName
+            FROM container_place_enquiry cpe
+            JOIN users u ON cpe.UserID = u.UserID
+            ORDER BY cpe.UploadDate DESC
+            LIMIT 3
+        `);
 
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
@@ -530,65 +478,14 @@ app.get("/Get-data-for-admin-dash-enquiry-page", async (req, res) => {
 });
 
 
+
 app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, async (req, res) => {
-    const { userId } = req.params; // Get UserID from the route parameter
+    const { userId } = req.params; // Get UserID from route parameter
 
     try {
         // Validate UserID
         if (!userId) {
             return res.status(400).json({ message: 'UserID is required' });
-        }
-
-        const query = `
-            SELECT 
-    cpe.CPE_ID,
-    cpe.CartonQty,
-    cpe.ProductID,
-    cpe.OrderID,
-	cpe.UploadDate,
-    c_m.PRODUCT_DESCRIPTION,         -- Data from cornitos_master
-    c_m.SKU_CODE,
-	c_m.CATEGORY,
-	c_m.BRAND,
-	c_m.SUB_CATEGORY,
-	c_m.UNIT,
-	c_m.UNIT_PER_CTN,
-	c_m.WEIGHT_PER_PKT_GRAMS,
-    cpe.UserID,
-    lo.username              -- Data from login
-
-FROM 
-    container_place_enquiry cpe
-INNER JOIN 
-    cornitos_master c_m
-    ON cpe.ProductID = c_m.ID
-INNER JOIN 
-    login lo
-    ON cpe.UserID = lo.ID
-
-WHERE
-	userId = @userId
-        `;
-
-        const request = new sql.Request();
-        request.input('UserID', sql.Int, userId); // Pass the UserID dynamically
-
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
-    } catch (err) {
-        console.error('Error fetching data:', err);
-        res.status(500).json({ msg: 'Error Fetching Data', error: err.message });
-    }
-});
-
-app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId", async (req, res) => {
-    const { userId, orderId } = req.params; // Get UserID and OrderID from the route parameters
-
-    try {
-        // Validate UserID
-        if (!userId) {
-            return res.status(400).json({ message: "UserID is required" });
         }
 
         const query = `
@@ -607,27 +504,70 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId", async (r
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 cpe.UserID,
-                lo.username              -- Data from login
+                lo.username -- Data from login
             FROM 
                 container_place_enquiry cpe
             INNER JOIN 
-                cornitos_master c_m
-                ON cpe.ProductID = c_m.ID
+                cornitos_master c_m ON cpe.ProductID = c_m.ID
             INNER JOIN 
-                login lo
-                ON cpe.UserID = lo.ID
+                login lo ON cpe.UserID = lo.ID
             WHERE
-                cpe.UserID = @userId
-                ${orderId ? "AND cpe.OrderID = @orderId" : ""}
+                cpe.UserID = ?
         `;
 
-        const request = new sql.Request();
-        request.input("UserID", sql.Int, userId); // Pass the UserID dynamically
-        if (orderId) request.input("OrderID", sql.VarChar(15), orderId); // Pass the OrderID if provided
+        const [rows] = await pool.query(query, [userId]); // Pass UserID dynamically
+        res.status(200).json({ data: rows });
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        res.status(500).json({ msg: 'Error Fetching Data', error: err.message });
+    }
+});
 
-        const result = await request.query(query);
+app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (req, res) => {
+    const { userId, orderId } = req.params; // Get UserID and OrderID from route parameters
 
-        res.status(200).json({ data: result.recordset });
+    try {
+        // Validate UserID
+        if (!userId) {
+            return res.status(400).json({ message: "UserID is required" });
+        }
+
+        let query = `
+            SELECT 
+                cpe.CPE_ID,
+                cpe.CartonQty,
+                cpe.ProductID,
+                cpe.OrderID,
+                cpe.UploadDate,
+                c_m.PRODUCT_DESCRIPTION, -- Data from cornitos_master
+                c_m.SKU_CODE,
+                c_m.CATEGORY,
+                c_m.BRAND,
+                c_m.SUB_CATEGORY,
+                c_m.UNIT,
+                c_m.UNIT_PER_CTN,
+                c_m.WEIGHT_PER_PKT_GRAMS,
+                cpe.UserID,
+                lo.username -- Data from login
+            FROM 
+                container_place_enquiry cpe
+            INNER JOIN 
+                cornitos_master c_m ON cpe.ProductID = c_m.ID
+            INNER JOIN 
+                login lo ON cpe.UserID = lo.ID
+            WHERE
+                cpe.UserID = ?
+        `;
+
+        const queryParams = [userId];
+
+        if (orderId) {
+            query += " AND cpe.OrderID = ?";
+            queryParams.push(orderId);
+        }
+
+        const [rows] = await pool.query(query, queryParams);
+        res.status(200).json({ data: rows });
     } catch (err) {
         console.error("Error fetching data:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
@@ -637,8 +577,12 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId", async (r
 
 
 
+
 // POST API to insert data into the table
 
+const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique IDs
+
+// Add to Container
 app.post('/add-to-container', authMiddleware, async (req, res) => {
     console.log(req.body); // Debugging: Log request body
     try {
@@ -648,44 +592,24 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
         if (!Quantity || !ProductID || !UserID || !CartonQty) {
             return res.status(400).json({ message: 'All fields are required' });
         }
-        // if (!Number.isInteger(CartonQty) || CartonQty <= 0) {
-        //     return res.status(400).json({ message: 'CartonQty must be a positive integer' });
-        // }
 
         // Check if ProductID and UserID exist in their respective tables
-        const checkProductQuery = `
-            SELECT COUNT(*) AS count 
-            FROM cornitos_master 
-            WHERE ID = @ProductID
-        `;
-        const checkUserQuery = `
-            SELECT COUNT(*) AS count 
-            FROM login 
-            WHERE ID = @UserID
-        `;
+        const checkProductQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE ID = ?`;
+        const checkUserQuery = `SELECT COUNT(*) AS count FROM login WHERE ID = ?`;
 
-        const request = new sql.Request();
-        request.input('ProductID', sql.Int, ProductID);
-        request.input('UserID', sql.Int, UserID);
+        const [[productResult]] = await pool.query(checkProductQuery, [ProductID]);
+        const [[userResult]] = await pool.query(checkUserQuery, [UserID]);
 
-        const productResult = await request.query(checkProductQuery);
-        const userResult = await request.query(checkUserQuery);
-
-        if (productResult.recordset[0].count === 0) {
+        if (productResult.count === 0) {
             return res.status(400).json({ message: 'Invalid ProductID' });
         }
-        if (userResult.recordset[0].count === 0) {
+        if (userResult.count === 0) {
             return res.status(400).json({ message: 'Invalid UserID' });
         }
 
         // Insert into the database
-        const insertQuery = `
-            INSERT INTO to_container (Quantity, ProductID, UserID, CartonQty)
-            VALUES (@Quantity, @ProductID, @UserID, @CartonQty)
-        `;
-        request.input('Quantity', sql.Int, Quantity);
-        request.input('CartonQty', sql.Int, CartonQty);
-        await request.query(insertQuery);
+        const insertQuery = `INSERT INTO to_container (Quantity, ProductID, UserID, CartonQty) VALUES (?, ?, ?, ?)`;
+        await pool.query(insertQuery, [Quantity, ProductID, UserID, CartonQty]);
 
         res.status(201).json({ message: 'Added to container successfully!' });
     } catch (error) {
@@ -694,10 +618,7 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
     }
 });
 
-
-
-const { v4: uuidv4 } = require('uuid'); // Import UUID library for generating unique IDs
-
+// Container Place Enquiry
 app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
     const data = req.body; // This should be an array of objects
 
@@ -718,25 +639,18 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
         // Generate a unique Order ID (UUID) for this batch of data
         const orderId = uuidv4().slice(0, 15); // Ensure OrderID fits VARCHAR(15)
 
-        // Prepare the query for multiple inserts
-        const query = `
-            INSERT INTO container_place_enquiry (OrderID, CartonQty, ProductID, UserID)
-            VALUES 
-            ${data.map((item, index) => `(@OrderID, @CartonQty${index}, @ProductID${index}, @UserID${index})`).join(', ')}
-        `;
+        // Prepare query for multiple inserts
+        const values = data.map(() => `(?, ?, ?, ?)`).join(', ');
+        const query = `INSERT INTO container_place_enquiry (OrderID, CartonQty, ProductID, UserID) VALUES ${values}`;
 
-        const request = new sql.Request();
-
-        // Add inputs for each item in the array, including the unique OrderID
-        request.input('OrderID', sql.VarChar(15), orderId); // OrderID is the same for all rows
-        data.forEach((item, index) => {
-            request.input(`CartonQty${index}`, sql.Int, item.CartonQty);
-            request.input(`ProductID${index}`, sql.Int, item.ProductID);
-            request.input(`UserID${index}`, sql.Int, item.UserID);
+        // Flatten array of values
+        const queryParams = [];
+        data.forEach((item) => {
+            queryParams.push(orderId, item.CartonQty, item.ProductID, item.UserID);
         });
 
-        // Execute the query
-        await request.query(query);
+        // Execute query
+        await pool.query(query, queryParams);
 
         res.status(201).json({ message: 'Data inserted successfully', orderId: orderId });
     } catch (err) {
@@ -746,19 +660,17 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
 });
 
 
+
 app.delete('/delete-container-data', authMiddleware, async (req, res) => {
     try {
-        const { userId } = req.body; // Assuming you are using UserID to identify the data to delete
+        const { userId } = req.body; // Using UserID to identify the data to delete
 
         if (!userId) {
             return res.status(400).json({ message: "UserID is required" });
         }
 
-        const query = `DELETE FROM to_container WHERE UserID = @UserID`; // Update table name as per your schema
-        const request = new sql.Request();
-        request.input("UserID", sql.Int, userId);
-
-        await request.query(query);
+        const query = `DELETE FROM to_container WHERE UserID = ?`;
+        await pool.query(query, [userId]);
 
         res.status(200).json({ message: "Container data deleted successfully" });
     } catch (err) {
@@ -766,7 +678,6 @@ app.delete('/delete-container-data', authMiddleware, async (req, res) => {
         res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 });
-
 
 app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (req, res) => {
     const { productId, userId } = req.params;
@@ -776,14 +687,10 @@ app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (r
     }
 
     try {
-        const request = new sql.Request();
-        request.input('ProductID', sql.Int, productId);
-        request.input('UserID', sql.Int, userId);
+        const query = `DELETE FROM to_container WHERE ProductID = ? AND UserID = ?`;
+        const [result] = await pool.query(query, [productId, userId]);
 
-        const query = `DELETE FROM to_container WHERE ProductID = @ProductID AND UserID = @UserID`;
-        const result = await request.query(query);
-
-        if (result.rowsAffected[0] > 0) {
+        if (result.affectedRows > 0) {
             res.status(200).json({ message: 'Product deleted successfully' });
         } else {
             res.status(404).json({ message: 'Product not found' });
@@ -794,7 +701,6 @@ app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (r
     }
 });
 
-
 // API to update a category
 app.put("/update-categories", async (req, res) => {
     const { oldName, newName } = req.body;
@@ -804,33 +710,17 @@ app.put("/update-categories", async (req, res) => {
     }
 
     try {
-        // Connect to the database
-        await sql.connect(config);
+        const query = `UPDATE cornitos_master SET CATEGORY = ? WHERE CATEGORY = ?`;
+        const [result] = await pool.query(query, [newName, oldName]);
 
-        // Prepare the request and define parameters
-        const request = new sql.Request();
-        request.input('oldName', sql.NVarChar, oldName);  // old category name
-        request.input('newName', sql.NVarChar, newName);  // new category name
-
-        // Run the SQL UPDATE query
-        const result = await request.query(`
-            UPDATE cornitos_master
-            SET CATEGORY = @newName
-            WHERE CATEGORY = @oldName
-        `, {
-            oldName: oldName,
-            newName: newName
-        });
-
-        // Check if any row was updated
-        if (result.rowsAffected[0] > 0) {
+        if (result.affectedRows > 0) {
             return res.json({ message: "Category updated successfully" });
         } else {
             return res.status(404).json({ message: "Category not found" });
         }
     } catch (err) {
         console.error('Error updating category:', err);
-        return res.status(500).json({ message: "Error updating category", error: err });
+        return res.status(500).json({ message: "Error updating category", error: err.message });
     }
 });
 
@@ -844,36 +734,23 @@ app.put("/update-subcategories", async (req, res) => {
     }
 
     try {
-        // Connect to the database
-        await sql.connect(config);
-
-        // Prepare the request and define parameters
-        const request = new sql.Request();
-        request.input('oldName', sql.NVarChar, oldName);  // old category name
-        request.input('newName', sql.NVarChar, newName);  // new category name
-
         // Run the SQL UPDATE query
-        const result = await request.query(`
-            UPDATE cornitos_master
-            SET SUB_CATEGORY = @newName
-            WHERE SUB_CATEGORY = @oldName
-        `, {
-            oldName: oldName,
-            newName: newName
-        });
+        const [result] = await pool.query(
+            `UPDATE cornitos_master SET SUB_CATEGORY = ? WHERE SUB_CATEGORY = ?`,
+            [newName, oldName]
+        );
 
         // Check if any row was updated
-        if (result.rowsAffected[0] > 0) {
+        if (result.affectedRows > 0) {
             return res.json({ message: "Sub-Category updated successfully" });
         } else {
             return res.status(404).json({ message: "Sub-Category not found" });
         }
     } catch (err) {
         console.error('Error updating sub-category:', err);
-        return res.status(500).json({ message: "Error updating sub-category", error: err });
+        return res.status(500).json({ message: "Error updating sub-category", error: err.message });
     }
 });
-
 
 
 app.put("/update-brand", async (req, res) => {
@@ -884,33 +761,21 @@ app.put("/update-brand", async (req, res) => {
     }
 
     try {
-        // Connect to the database
-        await sql.connect(config);
-
-        // Prepare the request and define parameters
-        const request = new sql.Request();
-        request.input('oldName', sql.NVarChar, oldName);  // old category name
-        request.input('newName', sql.NVarChar, newName);  // new category name
-
         // Run the SQL UPDATE query
-        const result = await request.query(`
-            UPDATE cornitos_master
-            SET BRAND = @newName
-            WHERE BRAND = @oldName
-        `, {
-            oldName: oldName,
-            newName: newName
-        });
+        const [result] = await pool.query(
+            `UPDATE cornitos_master SET BRAND = ? WHERE BRAND = ?`,
+            [newName, oldName]
+        );
 
         // Check if any row was updated
-        if (result.rowsAffected[0] > 0) {
+        if (result.affectedRows > 0) {
             return res.json({ message: "Brand updated successfully" });
         } else {
             return res.status(404).json({ message: "Brand not found" });
         }
     } catch (err) {
         console.error('Error updating brand:', err);
-        return res.status(500).json({ message: "Error updating brand", error: err });
+        return res.status(500).json({ message: "Error updating brand", error: err.message });
     }
 });
 
@@ -1023,61 +888,63 @@ app.post("/signup", async (req, res) => {
 
     try {
         const query = `
-            INSERT INTO users (EmailID, Password) VALUES (@EmailID, @Password)
+            INSERT INTO users (EmailID, Password) VALUES (?, ?)
         `;
-        const poolRequest = (await pool).request();
-        poolRequest.input("EmailID", sql.VarChar, EmailID);
-        poolRequest.input("Password", sql.VarChar, Password); // Store plain-text password
-
-        await poolRequest.query(query);
-
-        res.status(201).json({ message: "User registered successfully" });
+        pool.execute(query, [EmailID, Password], (err, results) => {
+            if (err) {
+                console.error(err.message);
+                return res.status(500).json({ error: "Server error" });
+            }
+            res.status(201).json({ message: "User registered successfully" });
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
     }
 });
 
-
+// Login route
 app.post("/loginuser", async (req, res) => {
     const { EmailID, Password } = req.body;
 
     try {
         const query = `
-            SELECT EmailID, Password, UserID FROM users WHERE EmailID = @EmailID
+            SELECT EmailID, Password, UserID FROM users WHERE EmailID = ?
         `;
-        const poolRequest = (await pool).request();
-        poolRequest.input("EmailID", sql.VarChar, EmailID);
+        pool.execute(query, [EmailID], (err, results) => {
+            if (err) {
+                console.error(err.message);
+                return res.status(500).json({ error: "Server error" });
+            }
 
-        const result = await poolRequest.query(query);
-        const user = result.recordset[0];
+            const user = results[0];
+            if (!user) {
+                return res.status(401).json({ message: "Invalid email or password" });
+            }
 
-        if (!user) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
+            // Compare plain-text password directly
+            if (Password !== user.Password) {
+                return res.status(401).json({ message: "Invalid email or password" });
+            }
 
-        // Compare plain-text password directly
-        if (Password !== user.Password) {
-            return res.status(401).json({ message: "Invalid email or password" });
-        }
+            const token = jwt.sign({ UserID: user.UserID, EmailID: user.EmailID }, process.env.SECRET_KEY, {
+                expiresIn: '1h' // Token expiration time
+            });
 
-        const token = jwt.sign({ UserID: user.UserID, EmailID: user.EmailID }, process.env.SECRET_KEY, {
-            expiresIn: '1h' // Token expiration time
+            res.json({ message: "Login successful", user: { UserID: user.UserID }, token: token });
         });
-
-        res.json({ message: "Login successful", user: { UserID: user.UserID }, token: token });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
     }
 });
 
+// Protected route
 app.get('/protected', authMiddleware, (req, res) => {
     res.json({ message: `Hello, ${req.user.EmailID}` });
 });
 
-
-// Profile Update Route
+// Profile update route
 app.put("/profile", authMiddleware, async (req, res) => {
     const { userId } = req.body; // Get userId from token after middleware
     const { FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone } = req.body;
@@ -1085,77 +952,68 @@ app.put("/profile", authMiddleware, async (req, res) => {
     try {
         const query = `
             UPDATE users 
-            SET FirstName = @FirstName, LastName = @LastName, PhoneNumber = @PhoneNumber, CompanyName = @CompanyName,
-                CompanyAddress = @CompanyAddress, City = @City, State = @State, Country = @Country, ZipCode = @ZipCode,
-                DischargePort = @DischargePort, AlternatePhone = @AlternatePhone
-            WHERE UserID = @UserID
+            SET FirstName = ?, LastName = ?, PhoneNumber = ?, CompanyName = ?, 
+                CompanyAddress = ?, City = ?, State = ?, Country = ?, ZipCode = ?, 
+                DischargePort = ?, AlternatePhone = ? 
+            WHERE UserID = ?
         `;
 
-        const poolRequest = (await pool).request();
-        poolRequest.input("FirstName", sql.VarChar, FirstName);
-        poolRequest.input("LastName", sql.VarChar, LastName);
-        poolRequest.input("PhoneNumber", sql.VarChar, PhoneNumber);
-        poolRequest.input("CompanyName", sql.VarChar, CompanyName);
-        poolRequest.input("CompanyAddress", sql.VarChar, CompanyAddress);
-        poolRequest.input("City", sql.VarChar, City);
-        poolRequest.input("State", sql.VarChar, State);
-        poolRequest.input("Country", sql.VarChar, Country);
-        poolRequest.input("ZipCode", sql.VarChar, ZipCode);
-        poolRequest.input("DischargePort", sql.VarChar, DischargePort);
-        poolRequest.input("AlternatePhone", sql.VarChar, AlternatePhone);
-        poolRequest.input("UserID", sql.Int, userId);
-
-        await poolRequest.query(query);
-
-        res.json({ message: "Profile updated successfully" });
+        pool.execute(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, userId], (err, results) => {
+            if (err) {
+                console.error(err.message);
+                return res.status(500).json({ error: "Server error" });
+            }
+            res.json({ message: "Profile updated successfully" });
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
     }
 });
 
+
 // GET API to fetch user profile
 app.get("/get-profile/:userId", async (req, res) => {
     const { userId } = req.params;
 
     try {
-        // Establish a connection pool
-        const pool = await sql.connect(config);
+        const query = `SELECT * FROM users WHERE userId = ?`; // Adjust query for MySQL
+        pool.execute(query, [userId], (err, results) => {
+            if (err) {
+                console.error("Error fetching user profile:", err);
+                return res.status(500).json({ error: "Internal Server Error" });
+            }
 
-        // Query the database
-        const result = await pool
-            .request()
-            .input("userId", sql.Int, userId) // Use the correct datatype for your `userId`
-            .query("SELECT * FROM users WHERE userId = @userId"); // Replace 'Users' and fields as per your DB
-
-        if (result.recordset.length > 0) {
-            res.status(200).json(result.recordset[0]); // Send the user data
-        } else {
-            res.status(404).json({ error: "User not found" });
-        }
-
-        // Close the pool connection after the query
-        pool.close();
+            if (results.length > 0) {
+                res.status(200).json(results[0]); // Send the user data
+            } else {
+                res.status(404).json({ error: "User not found" });
+            }
+        });
     } catch (error) {
         console.error("Error fetching user profile:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
+// Get customers route
 app.get("/get-customers", async (req, res) => {
     try {
-        const pool = await sql.connect(config);
-        const result = await pool.request().query("SELECT UserID, EmailID, FirstName, LastName, CompanyName FROM users"); // Modify the query as per your DB
-
-        res.status(200).json(result.recordset); // Return all users
+        const query = `SELECT UserID, EmailID, FirstName, LastName, CompanyName FROM users`; // Adjust query for MySQL
+        pool.execute(query, (err, results) => {
+            if (err) {
+                console.error("Error fetching customer list:", err);
+                return res.status(500).json({ error: "Internal Server Error" });
+            }
+            res.status(200).json(results); // Return all users
+        });
     } catch (error) {
         console.error("Error fetching customer list:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
-
-
+// Admin login route
 app.post('/adminlogin', async (req, res) => {
     const { Username, Password } = req.body;
 
@@ -1165,34 +1023,35 @@ app.post('/adminlogin', async (req, res) => {
             return res.status(400).json({ message: 'Username and password are required' });
         }
 
-        // Query to check the login credentials
         const query = `
             SELECT * 
             FROM admin_login 
-            WHERE Username = @Username AND Password = @Password
+            WHERE Username = ? AND Password = ?
         `;
 
-        const request = new sql.Request();
-        request.input('Username', sql.VarChar, Username);
-        request.input('Password', sql.VarChar, Password);
+        pool.execute(query, [Username, Password], (err, results) => {
+            if (err) {
+                console.error('Error during login:', err);
+                return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+            }
 
-        const result = await request.query(query);
-
-        if (result.recordset.length > 0) {
-            // Successful login
-            res.status(200).json({
-                message: 'Login Successful',
-                user: result.recordset[0], // Send the user details (optional)
-            });
-        } else {
-            // Invalid credentials
-            res.status(401).json({ message: 'Invalid username or password' });
-        }
+            if (results.length > 0) {
+                // Successful login
+                res.status(200).json({
+                    message: 'Login Successful',
+                    user: results[0], // Send the user details (optional)
+                });
+            } else {
+                // Invalid credentials
+                res.status(401).json({ message: 'Invalid username or password' });
+            }
+        });
     } catch (err) {
         console.error('Error during login:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
+
 
 
 // API endpoint to save contact messages
@@ -1204,18 +1063,19 @@ app.post('/contact-us-messages', async (req, res) => {
     }
 
     try {
-        const pool = await sql.connect(config);
-        const result = await pool.request()
-            .input('Name', sql.NVarChar, Name)
-            .input('Email', sql.NVarChar, Email)
-            .input('ContactNumber', sql.NVarChar, ContactNumber)
-            .input('Message', sql.NVarChar, Message)
-            .query(`
-                INSERT INTO ContactUsMessages (Name, Email, ContactNumber, Message)
-                VALUES (@Name, @Email, @ContactNumber, @Message)
-            `);
+        const query = `
+            INSERT INTO ContactUsMessages (Name, Email, ContactNumber, Message)
+            VALUES (?, ?, ?, ?)
+        `;
 
-        res.status(201).json({ message: 'Message saved successfully!' });
+        pool.execute(query, [Name, Email, ContactNumber, Message], (err, result) => {
+            if (err) {
+                console.error('Error saving message:', err);
+                return res.status(500).json({ error: 'An error occurred while saving the message.' });
+            }
+
+            res.status(201).json({ message: 'Message saved successfully!' });
+        });
     } catch (error) {
         console.error('Error saving message:', error);
         res.status(500).json({ error: 'An error occurred while saving the message.' });
@@ -1225,8 +1085,7 @@ app.post('/contact-us-messages', async (req, res) => {
 // API endpoint to fetch all contact messages
 app.get('/Get-contact-us-messages', async (req, res) => {
     try {
-        const pool = await sql.connect(config);
-        const result = await pool.request().query(`
+        const query = `
             SELECT 
                 ContactUsID, 
                 Name, 
@@ -1237,9 +1096,16 @@ app.get('/Get-contact-us-messages', async (req, res) => {
             FROM 
                 ContactUsMessages
             ORDER BY CreatedAt DESC
-        `);
+        `;
 
-        res.status(200).json(result.recordset);
+        pool.execute(query, (err, results) => {
+            if (err) {
+                console.error('Error fetching messages:', err);
+                return res.status(500).json({ error: 'An error occurred while fetching the messages.' });
+            }
+
+            res.status(200).json(results); // Return all contact messages
+        });
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'An error occurred while fetching the messages.' });
@@ -1263,6 +1129,7 @@ const store = multer({
     { name: 'shippingDocuments', maxCount: 20 },
 ]);
 
+// API route to upload files
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     const { orderId, userId } = req.params;
     const { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber } = req.body;
@@ -1271,20 +1138,13 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         return res.status(400).json({ message: 'UserID is required' });
     }
 
-    const pool = await sql.connect(config);
-
     try {
         // Check if the OrderID belongs to the UserID
-        const checkOrder = await pool.request()
-            .input('OrderID', sql.VarChar(100), orderId)
-            .input('UserID', sql.Int, userId)
-            .query(`
-                SELECT 1 
-                FROM Orders 
-                WHERE OrderID = @OrderID AND UserID = @UserID
-            `);
+        const [rows] = await pool.promise().query(`
+            SELECT 1 FROM Orders WHERE OrderID = ? AND UserID = ?
+        `, [orderId, userId]);
 
-        if (checkOrder.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ message: 'Order not found for this user' });
         }
 
@@ -1296,27 +1156,10 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         const insertFileRecord = async (documentType, file) => {
             const { originalname: fileName, path: filePath, mimetype: fileType } = file;
 
-            await pool.request()
-                .input('OrderID', sql.VarChar(100), orderId)
-                .input('UserID', sql.Int, userId)
-                .input('DocumentType', sql.NVarChar(50), documentType)
-                .input('FileName', sql.NVarChar(255), fileName)
-                .input('FilePath', sql.NVarChar(500), filePath)
-                .input('FileType', sql.NVarChar(50), fileType)
-                .input('ShippingStatus', sql.NVarChar(100), ShippingStatus || null)
-                .input('BLNumber', sql.NVarChar(100), BLNumber || null)
-                .input('ShippingLines', sql.NVarChar(100), ShippingLines || null)
-                .input('ETA', sql.NVarChar(100), ETA || null)
-                .input('ProformaInvoiceNumber', sql.NVarChar(20), ProformaInvoiceNumber || null)
-                .query(`
-                    INSERT INTO OrderFiles (
-                        OrderID, UserID, DocumentType, FileName, FilePath, 
-                        FileType, UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber
-                    ) VALUES (
-                        @OrderID, @UserID, @DocumentType, @FileName, @FilePath, 
-                        @FileType, GETDATE(), @ShippingStatus, @BLNumber, @ShippingLines, @ETA, @ProformaInvoiceNumber
-                    )
-                `);
+            await pool.promise().query(`
+                INSERT INTO OrderFiles (OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
+            `, [orderId, userId, documentType, fileName, filePath, fileType, ShippingStatus || null, BLNumber || null, ShippingLines || null, ETA || null, ProformaInvoiceNumber || null]);
         };
 
         if (files.quotationFile) {
@@ -1337,50 +1180,33 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     } catch (error) {
         console.error('Error uploading files:', error);
         res.status(500).json({ message: 'File upload error', error: error.message });
-    } finally {
-        pool.close();
     }
 });
 
-module.exports = app;
-
-
-
-app.get('/get-files-data/:userId/:orderId', authMiddleware, async (req, res) => {
-    const { userId, orderId } = req.params; // Extract userId and orderId from the route parameters
+// API route to get files data for a specific user and order
+app.get('/get-files-data/:userId/:orderId', async (req, res) => {
+    const { userId, orderId } = req.params;
 
     try {
-        const pool = await sql.connect(config); // Establish connection with the database
+        const [rows] = await pool.promise().query(`
+            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber
+            FROM OrderFiles
+            WHERE UserID = ? AND OrderID = ?
+        `, [userId, orderId]);
 
-        // Execute the query with parameterized inputs
-        const result = await pool.request()
-            .input('userId', sql.Int, userId) // Use sql.Int if userId is an integer in the database
-            .input('orderId', sql.VarChar, orderId) // Use sql.VarChar if orderId is a string in the database
-            .query(`
-                SELECT 
-                    OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate, 
-                    ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber
-                FROM OrderFiles
-                WHERE UserID = @userId AND OrderID = @orderId
-            `);
-
-        // Check if any files are found
-        if (result.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({
                 success: false,
                 message: "No files found for the specified user and order"
             });
         }
 
-        // Return the file data if found
         res.status(200).json({
             success: true,
-            files: result.recordset
+            files: rows
         });
     } catch (error) {
         console.error("Error retrieving files:", error);
-
-        // Return a 500 response for server errors
         res.status(500).json({
             success: false,
             message: "Failed to retrieve files",
@@ -1389,129 +1215,101 @@ app.get('/get-files-data/:userId/:orderId', authMiddleware, async (req, res) => 
     }
 });
 
-const filepath = require('path');
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-app.use('/uploads', express.static(filepath.join(__dirname, 'uploads')));
-
-module.exports = app;
-
-
-
-// API route to get uploaded files for a specific order and user
-app.get('/get-uploaded-files', authMiddleware, async (req, res) => {
-    // const { OrderID, UserID } = req.query; // Get OrderID and UserID from query parameters
-    const { UserID } = req.query; // Get OrderID and UserID from query parameters
-
-    // if (!OrderID || !UserID) {
-    //     return res.status(400).json({ message: 'OrderID and UserID are required' });
-    // }
+// API route to get all uploaded files for a specific user
+app.get('/get-uploaded-files', async (req, res) => {
+    const { UserID } = req.query;
 
     if (!UserID) {
-        return res.status(400).json({ message: 'UserID are required' });
+        return res.status(400).json({ message: 'UserID is required' });
     }
 
     try {
-        const pool = await sql.connect(config);
-        const result = await pool.request()
-            // .input('OrderID', sql.VarChar(100), OrderID)
-            .input('UserID', sql.Int, UserID)
-            .query(`
-                SELECT FileID, DocumentType, FileName, FilePath, FileType, ShippingStatus, BLNumber, ShippingLines, ETA
-                FROM UploadedFiles
-                WHERE OrderID = @OrderID AND UserID = @UserID
-            `);
+        const [rows] = await pool.promise().query(`
+            SELECT FileID, DocumentType, FileName, FilePath, FileType, ShippingStatus, BLNumber, ShippingLines, ETA
+            FROM UploadedFiles
+            WHERE UserID = ?
+        `, [UserID]);
 
-        res.status(200).json(result.recordset);
+        res.status(200).json(rows);
     } catch (error) {
         console.error('Error retrieving files:', error);
         res.status(500).json({ message: 'Error retrieving files', error: error.message });
     }
 });
 
+module.exports = app;
 
 
 
 // Multer setup for file uploads
-const upload = multer({ dest: 'uploads/' });
-
-// Endpoint to upload and process CSV
-app.post('/upload-csv', upload.single('file'), async (req, res) => {
+app.post('/upload-csv', async (req, res) => {
     console.log(req.file); // Should log file details if uploaded correctly
     if (!req.file) {
         return res.status(400).json({ message: "No file uploaded." });
     }
     const filePath = req.file.path;
 
-    // Connect to the database
-    try {
-        // const pool = await sql.connect(dbConfig);
+    const rows = [];
+    // Read and parse the CSV file
+    fs.createReadStream(filePath)
+        .pipe(csvParser())
+        .on('data', (row) => {
+            rows.push(row);
+        })
+        .on('end', async () => {
+            try {
+                // Insert each row into the MySQL database
+                for (const row of rows) {
+                    const query = `
+                        INSERT INTO cornitos_master (
+                            CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
+                            UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
+                            LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS,
+                            UNIT_MEASUREMENT_TYPE
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `;
+                    const values = [
+                        row['CATEGORY'] || null,
+                        row['CATEGORY_CODE'] || null,
+                        row['SUB_CATEGORY'] || null,
+                        row['BRAND'] || null,
+                        row['CODE'] || null,
+                        row['SKU_CODE'] || null,
+                        row['PRODUCT_DESCRIPTION'] || null,
+                        row['UNIT'] || null,
+                        row['UNIT_PER_CTN'] || null,
+                        row['WEIGHT_PER_PKT_GRAMS'] || null,
+                        row['SHELF_LIFE_MONTHS'] || null,
+                        row['NET_WEIGHT'] || null,
+                        row['LENGTH_INCHES'] || null,
+                        row['WIDTH_INCHES'] || null,
+                        row['HEIGHT_INCHES'] || null,
+                        row['VOL_PER_CTN'] || null,
+                        row['BARCODE'] || null,
+                        row['MRP'] || null,
+                        row['REMARKS'] || null,
+                        row['UNIT_MEASUREMENT_TYPE'] || null
+                    ];
 
-        const rows = [];
-        // Read and parse the CSV file
-        fs.createReadStream(filePath)
-            .pipe(csvParser())
-            .on('data', (row) => {
-                // console.log('Parsed Row:', row);
-                rows.push(row);
-            })
-            .on('end', async () => {
-                try {
-                    // Insert each row into the database
-                    for (const row of rows) {
-                        await pool.request()
-                            .input('Category', sql.VarChar(50), row['CATEGORY'] || null)
-                            .input('CategoryCode', sql.VarChar(10), row['CATEGORY_CODE'] || null)
-                            .input('SubCategory', sql.VarChar(50), row['SUB_CATEGORY'] || null)
-                            .input('Brand', sql.VarChar(50), row['BRAND'] || null)
-                            .input('Code', sql.VarChar(20), row['CODE'] || null)
-                            .input('SkuCode', sql.VarChar(20), row['SKU_CODE'] || null)
-                            .input('ProductDescription', sql.Text, row['PRODUCT_DESCRIPTION'] || null)
-                            .input('Unit', sql.VarChar(10), row['UNIT'] || null)
-                            .input('UnitPerCtn', sql.Int, row['UNIT_PER_CTN'] || null)
-                            .input('WeightPerPktGrams', sql.VarChar(20), row['WEIGHT_PER_PKT_GRAMS'] || null)
-                            .input('ShelfLifeMonths', sql.Int, row['SHELF_LIFE_MONTHS'] || null)
-                            .input('NetWeight', sql.Decimal(10, 2), row['NET_WEIGHT'] || null)
-                            .input('LengthInches', sql.Decimal(10, 2), row['LENGTH_INCHES'] || null)
-                            .input('WidthInches', sql.Decimal(10, 2), row['WIDTH_INCHES'] || null)
-                            .input('HeightInches', sql.Decimal(10, 2), row['HEIGHT_INCHES'] || null)
-                            .input('VolPerCtn', sql.Decimal(10, 2), row['VOL_PER_CTN'] || null)
-                            .input('Barcode', sql.VarChar(20), row['BARCODE'] || null)
-                            .input('Mrp', sql.VarChar(20), row['MRP'] || null)
-                            .input('Remarks', sql.Text, row['REMARKS'] || null)
-                            .input('UnitMeasurementType', sql.VarChar(10), row['UNIT_MEASUREMENT_TYPE'] || null)
-                            .query(`
-                                INSERT INTO cornitos_master (
-                                    CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
-                                    UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
-                                    LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS,
-                                    UNIT_MEASUREMENT_TYPE
-                                ) VALUES (
-                                    @Category, @CategoryCode, @SubCategory, @Brand, @Code, @SkuCode, @ProductDescription,
-                                    @Unit, @UnitPerCtn, @WeightPerPktGrams, @ShelfLifeMonths, @NetWeight,
-                                    @LengthInches, @WidthInches, @HeightInches, @VolPerCtn, @Barcode, @Mrp, @Remarks,
-                                    @UnitMeasurementType
-                                )
-                            `);
-                    }
-
-                    // Cleanup: delete the uploaded file after processing
-                    fs.unlinkSync(filePath);
-
-                    res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
-                } catch (error) {
-                    console.error('Error inserting data:', error);
-                    res.status(500).json({ message: 'Error inserting data', error });
+                    await pool.promise().query(query, values);
                 }
-            });
-    } catch (err) {
-        console.error('Database connection error:', err);
-        res.status(500).json({ message: 'Database connection error', error: err });
-    }
+
+                // Cleanup: delete the uploaded file after processing
+                fs.unlinkSync(filePath);
+
+                res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
+            } catch (error) {
+                console.error('Error inserting data:', error);
+                res.status(500).json({ message: 'Error inserting data', error });
+            }
+        });
 });
 
-
-
-app.post('/upload-single', upload.single('file'), async (req, res) => {
+// Endpoint to upload a single file
+app.post('/upload-single', async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded.' });
     }
@@ -1522,17 +1320,19 @@ app.post('/upload-single', upload.single('file'), async (req, res) => {
 
     try {
         // Save metadata to the database
-        const pool = await sql.connect(dbConfig); // dbConfig should be your MSSQL configuration
-        await pool.request()
-            .input('DocumentType', sql.NVarChar(50), documentType)
-            .input('ReferenceID', sql.Int, referenceID)
-            .input('FileName', sql.NVarChar(255), req.file.originalname)
-            .input('FilePath', sql.NVarChar(500), filePath)
-            .input('FileType', sql.NVarChar(50), fileType)
-            .query(`
-                INSERT INTO UploadedFiles (DocumentType, ReferenceID, FileName, FilePath, FileType)
-                VALUES (@DocumentType, @ReferenceID, @FileName, @FilePath, @FileType)
-            `);
+        const query = `
+            INSERT INTO UploadedFiles (DocumentType, ReferenceID, FileName, FilePath, FileType)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        const values = [
+            documentType,
+            referenceID,
+            req.file.originalname,
+            filePath,
+            fileType
+        ];
+
+        await pool.promise().query(query, values);
 
         res.status(200).json({ message: 'File uploaded successfully!', file: req.file });
     } catch (error) {
@@ -1540,7 +1340,6 @@ app.post('/upload-single', upload.single('file'), async (req, res) => {
         res.status(500).json({ message: 'Error saving file metadata.', error });
     }
 });
-
 
 
 // Multer configuration
@@ -1573,8 +1372,7 @@ app.post('/enquiry-quotation-files/:orderId/:userId', async (req, res) => {
         return res.status(400).json({ message: 'DocumentType is required' });
     }
 
-    const pool = await sql.connect(config);
-
+    // Handle file upload
     storing(req, res, async (err) => {
         if (err) {
             console.error('Multer error:', err);
@@ -1582,22 +1380,19 @@ app.post('/enquiry-quotation-files/:orderId/:userId', async (req, res) => {
         }
 
         try {
-            const userCheck = await pool.request()
-                .input('userId', sql.Int, userId)
-                .query('SELECT COUNT(*) AS count FROM Users WHERE UserID = @UserID');
-            if (userCheck.recordset[0].count === 0) {
+            // Check if the user exists
+            const [userCheck] = await pool.promise().query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
+            if (userCheck[0].count === 0) {
                 return res.status(404).json({ message: 'Invalid UserID' });
             }
 
-            const orderCheck = await pool.request()
-                .input('OrderID', sql.VarChar(15), orderId)
-                .input('userId', sql.Int, userId)
-                .query(`
-                    SELECT COUNT(*) AS count 
-                    FROM Orders 
-                    WHERE OrderID = @OrderID AND UserID = @UserID
-                `);
-            if (orderCheck.recordset[0].count === 0) {
+            // Check if the order exists for the user
+            const [orderCheck] = await pool.promise().query(`
+                SELECT COUNT(*) AS count 
+                FROM Orders 
+                WHERE OrderID = ? AND UserID = ?
+            `, [orderId, userId]);
+            if (orderCheck[0].count === 0) {
                 console.error(`Invalid OrderID: ${orderId} for UserID: ${userId}`);
                 return res.status(404).json({ message: 'Invalid OrderID or Order does not belong to the user' });
             }
@@ -1612,19 +1407,11 @@ app.post('/enquiry-quotation-files/:orderId/:userId', async (req, res) => {
             const filePath = `uploads/${file.filename}`;
             const fileType = file.mimetype;
 
-            await pool.request()
-                .input('OrderID', sql.VarChar(15), orderId)
-                .input('UserID', sql.Int, userId)
-                .input('DocumentType', sql.NVarChar(50), DocumentType)
-                .input('ReferenceID', sql.Int, null)
-                .input('FileName', sql.NVarChar(255), fileName)
-                .input('FilePath', sql.NVarChar(500), filePath)
-                .input('FileType', sql.NVarChar(50), fileType)
-                .input('UploadDate', sql.DateTime, new Date())
-                .query(`
-                    INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
-                    VALUES (@OrderID, @UserID, @DocumentType, @ReferenceID, @FileName, @FilePath, @FileType, @UploadDate)
-                `);
+            // Save file metadata to the database
+            await pool.promise().query(`
+                INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
 
             res.status(200).json({
                 message: 'File uploaded and metadata saved to database successfully!',
@@ -1645,29 +1432,22 @@ app.get('/enquiry-quotation-files/:userId/:orderId', authMiddleware, async (req,
     const { userId, orderId } = req.params; // Extract userId and orderId from route parameters
 
     try {
-        const pool = await sql.connect(config);
-
         // Query files specific to the authenticated user and order
-        const result = await pool.request()
-            .input('userId', sql.VarChar, userId) // Bind userId to prevent SQL injection
-            .input('orderId', sql.VarChar, orderId) // Bind orderId to prevent SQL injection
-            .query(`
-                SELECT FileName, FilePath, FileType, UploadDate 
-                FROM EnquiryQuotationFiles
-                WHERE UserID = @userId AND OrderID = @orderId
-            `);
+        const [rows] = await pool.promise().query(`
+            SELECT FileName, FilePath, FileType, UploadDate 
+            FROM EnquiryQuotationFiles
+            WHERE UserID = ? AND OrderID = ?
+        `, [userId, orderId]);
 
-        if (result.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ message: "No files found for the specified user and order" });
         }
 
         // Return the file metadata
-        res.status(200).json({ files: result.recordset });
+        res.status(200).json({ files: rows });
     } catch (error) {
         console.error("Error retrieving files:", error);
         res.status(500).json({ message: "Failed to retrieve files", error: error.message });
-    } finally {
-        sql.close(); // Close the SQL connection
     }
 });
 
@@ -1676,29 +1456,22 @@ app.get('/enquiry-quotation-files-admin/:userId/:orderId', async (req, res) => {
     const { userId, orderId } = req.params; // Extract userId and orderId from route parameters
 
     try {
-        const pool = await sql.connect(config);
-
         // Query files specific to the user and order
-        const result = await pool.request()
-            .input('userId', sql.VarChar, userId) // Bind userId to prevent SQL injection
-            .input('orderId', sql.VarChar, orderId) // Bind orderId to prevent SQL injection
-            .query(`
-                SELECT FileName, FilePath, FileType, UploadDate 
-                FROM EnquiryQuotationFiles
-                WHERE UserID = @userId AND OrderID = @orderId
-            `);
+        const [rows] = await pool.promise().query(`
+            SELECT FileName, FilePath, FileType, UploadDate 
+            FROM EnquiryQuotationFiles
+            WHERE UserID = ? AND OrderID = ?
+        `, [userId, orderId]);
 
-        if (result.recordset.length === 0) {
+        if (rows.length === 0) {
             return res.status(404).json({ message: "No files found for the specified user and order" });
         }
 
         // Return the file metadata
-        res.status(200).json({ files: result.recordset });
+        res.status(200).json({ files: rows });
     } catch (error) {
         console.error("Error retrieving files:", error);
         res.status(500).json({ message: "Failed to retrieve files", error: error.message });
-    } finally {
-        sql.close(); // Close the SQL connection
     }
 });
 
@@ -1717,7 +1490,7 @@ app.get('/download-file/:fileName', (req, res) => {
     });
 });
 
-
+// Route to convert enquiry to order
 app.post('/convert-enquiry-to-order', async (req, res) => {
     const { cpeIds } = req.body; // assuming you're passing CPE_IDs now instead of OrderIDs
 
@@ -1725,25 +1498,21 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         return res.status(400).json({ message: 'No CPE_IDs provided. Please select at least one CPE_ID.' });
     }
 
-    let transaction;
+    let connection;
     try {
-        transaction = new sql.Transaction();
-        await transaction.begin();
+        connection = await pool.promise().getConnection(); // Get a connection from the pool
+        await connection.beginTransaction(); // Start a transaction
 
         for (const cpeId of cpeIds) {
-            const request = new sql.Request(transaction);
-
             // Check if CPE_ID already exists in Orders
             const checkQuery = `
                 SELECT COUNT(*) AS count 
                 FROM Orders 
-                WHERE CPE_ID = @CPE_ID
+                WHERE CPE_ID = ?
             `;
-            request.input('CPE_ID', sql.Int, cpeId);  // Assuming CPE_ID is an integer
-            const checkResult = await request.query(checkQuery);
-            console.log('checkResult:', checkResult);
+            const [checkResult] = await connection.execute(checkQuery, [cpeId]);
 
-            if (checkResult.recordset[0].count > 0) {
+            if (checkResult[0].count > 0) {
                 continue; // Skip if the CPE_ID already exists
             }
 
@@ -1751,14 +1520,12 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
             const selectQuery = `
                 SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate
                 FROM container_place_enquiry
-                WHERE CPE_ID = @CPE_ID;
+                WHERE CPE_ID = ?
             `;
-            console.log('Executing selectQuery:', selectQuery);
-            const selectResult = await request.query(selectQuery);
-            console.log('Select Query Result:', selectResult);
+            const [selectResult] = await connection.execute(selectQuery, [cpeId]);
 
             // Check if the result has valid data
-            if (selectResult.recordset.length === 0) {
+            if (selectResult.length === 0) {
                 console.log('No data found for CPE_ID:', cpeId);
                 continue;
             }
@@ -1768,11 +1535,10 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
                 INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate)
                 SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate
                 FROM container_place_enquiry
-                WHERE CPE_ID = @CPE_ID;
+                WHERE CPE_ID = ?
             `;
             try {
-                console.log('Executing insertQuery:', insertQuery);
-                await request.query(insertQuery);
+                await connection.execute(insertQuery, [cpeId]);
             } catch (err) {
                 console.error('Error during INSERT query:', err);
                 continue; // Continue with next iteration if insert fails
@@ -1782,20 +1548,23 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
             const updateQuery = `
                 UPDATE container_place_enquiry
                 SET IsConverted = 1
-                WHERE CPE_ID = @CPE_ID
+                WHERE CPE_ID = ?
             `;
-            console.log('Executing updateQuery:', updateQuery);
-            await request.query(updateQuery);
+            await connection.execute(updateQuery, [cpeId]);
         }
 
-        await transaction.commit();
+        await connection.commit(); // Commit the transaction
         res.status(200).json({ message: 'Selected enquiries successfully converted to orders.' });
     } catch (err) {
-        if (transaction) {
-            await transaction.rollback();
+        if (connection) {
+            await connection.rollback(); // Rollback in case of error
         }
         console.error('Error during transaction:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    } finally {
+        if (connection) {
+            connection.release(); // Release the connection back to the pool
+        }
     }
 });
 
@@ -1806,11 +1575,9 @@ app.get('/Get-orders', async (req, res) => {
             throw new Error("Database connection is not initialized");
         }
 
-        // Execute the SQL query with a join to the users table
-        const result = await pool
-            .request()
-            .query(
-                `SELECT DISTINCT
+        // SQL query with JOINs for orders, users, and order files
+        const query = `
+            SELECT DISTINCT
                 o.OrderID,
                 o.CartonQty,
                 o.ProductID,
@@ -1828,22 +1595,25 @@ app.get('/Get-orders', async (req, res) => {
             LEFT JOIN 
                 OrderFiles ofiles ON o.OrderID = ofiles.OrderID
             ORDER BY 
-                o.UploadDate DESC`
-            );
+                o.UploadDate DESC
+        `;
 
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        // Execute the query
+        const [rows] = await pool.promise().query(query);
+
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
-
+// Route for getting orders by user ID
 app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
     const { userId } = req.params; // Extracting userId from route parameters
 
     try {
-        // SQL query with parameterized input
+        // SQL query with parameterized input for fetching orders specific to the user
         const query = `
             SELECT 
                 o.OrderID,
@@ -1873,19 +1643,16 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
             LEFT JOIN 
                 OrderFiles ofiles ON o.OrderID = ofiles.OrderID
             WHERE 
-                o.UserID = @userId
+                o.UserID = ?
             ORDER BY 
                 o.UploadDate DESC
         `;
 
-        // Creating a SQL request and binding the userId parameter
-        const request = new sql.Request();
-        request.input('userId', sql.Int, userId); // Binding 'userId' to the query
-
-        const result = await request.query(query);
+        // Execute the query with the userId parameter
+        const [rows] = await pool.promise().query(query, [userId]);
 
         // Send back the response
-        res.status(200).json({ msg: 'Data Fetched Successfully', data: result.recordset });
+        res.status(200).json({ msg: 'Data Fetched Successfully', data: rows });
     } catch (err) {
         console.error('Error fetching orders:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1893,10 +1660,11 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
 });
 
 
+
 app.get('/Get-orders-for-admin-dash', async (req, res) => {
     try {
         const query = `
-            SELECT TOP 3
+            SELECT 
                 o.OrderID,
                 o.CartonQty,
                 o.ProductID,
@@ -1919,140 +1687,104 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
             INNER JOIN 
                 cornitos_master cm ON o.ProductID = cm.ID
             INNER JOIN 
-                users u ON o.UserID = u.UserID  -- No change here, 'users' table is being used
+                users u ON o.UserID = u.UserID
             ORDER BY 
                 o.UploadDate DESC
+            LIMIT 3
         `;
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
         console.error('Error fetching orders:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total customer count for the admin
 app.get('/Get-admin-customer', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(*) AS TotalCount FROM users`;
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(*) AS TotalCount FROM users`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching customer count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total distinct order enquiry count for the admin
 app.get('/Get-admin-enquiry', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
-
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching enquiry count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total order count for the admin
 app.get('/Get-admin-order', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(*) AS TotalCount FROM Orders`;
-
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching order count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total product count for the admin
 app.get('/Get-admin-products', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
-
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching product count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total distinct category count for the admin
 app.get('/Get-admin-category', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
-
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching category count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total distinct subcategory count for the admin
 app.get('/Get-admin-subcategory', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
-
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching subcategory count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for getting total distinct brand count for the admin
 app.get('/Get-admin-brand', async (req, res) => {
     try {
-        const query = `
-            SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
-
-
-        const request = new sql.Request();
-        const result = await request.query(query);
-
-        res.status(200).json({ data: result.recordset });
+        const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows });
     } catch (err) {
-        console.error('Error fetching orders:', err);
+        console.error('Error fetching brand count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
 
-
+// Route for downloading the product catalogue
 app.get('/download-catalogue', (req, res) => {
     const filePath = path.join(__dirname, 'EXIMTRAC INDIAN MERCHANT GROCERY EXPORTER PRODUCT CATALOGUE 2024.pdf');
     res.download(filePath, 'EXIMTRAC INDIAN MERCHANT GROCERY EXPORTER PRODUCT CATALOGUE 2024.pdf', (err) => {
@@ -2062,7 +1794,6 @@ app.get('/download-catalogue', (req, res) => {
         }
     });
 });
-
 
 
 
