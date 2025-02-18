@@ -560,6 +560,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
 const { v4: uuidv4 } = require('uuid');
 
 // Add to Container
+// Add to Container
 app.post('/add-to-container', authMiddleware, async (req, res) => {
     console.log(req.body);
 
@@ -589,7 +590,7 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
 
         res.status(201).json({ message: 'Added to container successfully!' });
     } catch (error) {
-        console.error('Error in /add-to-container:', error.message, error.stack);
+        console.error('Error in /add-to-container:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
@@ -636,13 +637,12 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
 
         res.status(201).json({ message: 'Enquiry placed successfully!', orderId: orderId });
     } catch (error) {
-        console.error('Error in /container-place-enquiry:', error.message, error.stack);
+        console.error('Error in /container-place-enquiry:', error.message);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
 
-
-
+// Delete all container data for a user
 app.delete('/delete-container-data', authMiddleware, async (req, res) => {
     try {
         const { userId } = req.body; // Using UserID to identify the data to delete
@@ -661,6 +661,7 @@ app.delete('/delete-container-data', authMiddleware, async (req, res) => {
     }
 });
 
+// Delete a specific container item for a user
 app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (req, res) => {
     const { productId, userId } = req.params;
 
@@ -683,7 +684,7 @@ app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (r
     }
 });
 
-// API to update a category
+// Update a category
 app.put("/update-categories", async (req, res) => {
     const { oldName, newName } = req.body;
 
@@ -706,6 +707,7 @@ app.put("/update-categories", async (req, res) => {
     }
 });
 
+// Update a subcategory
 app.put("/update-subcategories", async (req, res) => {
     const { oldName, newName } = req.body;
 
@@ -732,6 +734,7 @@ app.put("/update-subcategories", async (req, res) => {
     }
 });
 
+// Update a brand
 app.put("/update-brand", async (req, res) => {
     const { oldName, newName } = req.body;
 
@@ -757,7 +760,6 @@ app.put("/update-brand", async (req, res) => {
         return res.status(500).json({ message: "Error updating brand", error: err.message });
     }
 });
-
 
 
 
@@ -870,13 +872,8 @@ app.post("/signup", async (req, res) => {
         const query = `
             INSERT INTO users (EmailID, Password) VALUES (?, ?)
         `;
-        pool.execute(query, [EmailID, Password], (err, results) => {
-            if (err) {
-                console.error(err.message);
-                return res.status(500).json({ error: "Server error" });
-            }
-            res.status(201).json({ message: "User registered successfully" });
-        });
+        await pool.query(query, [EmailID, Password]); // Use await here
+        res.status(201).json({ message: "User registered successfully" });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
@@ -891,28 +888,23 @@ app.post("/loginuser", async (req, res) => {
         const query = `
             SELECT EmailID, Password, UserID FROM users WHERE EmailID = ?
         `;
-        pool.execute(query, [EmailID], (err, results) => {
-            if (err) {
-                console.error(err.message);
-                return res.status(500).json({ error: "Server error" });
-            }
+        const [results] = await pool.query(query, [EmailID]); // Use await here
 
-            const user = results[0];
-            if (!user) {
-                return res.status(401).json({ message: "Invalid email or password" });
-            }
+        const user = results[0];
+        if (!user) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
 
-            // Compare plain-text password directly
-            if (Password !== user.Password) {
-                return res.status(401).json({ message: "Invalid email or password" });
-            }
+        // Compare plain-text password directly
+        if (Password !== user.Password) {
+            return res.status(401).json({ message: "Invalid email or password" });
+        }
 
-            const token = jwt.sign({ UserID: user.UserID, EmailID: user.EmailID }, process.env.SECRET_KEY, {
-                expiresIn: '1h' // Token expiration time
-            });
-
-            res.json({ message: "Login successful", user: { UserID: user.UserID }, token: token });
+        const token = jwt.sign({ UserID: user.UserID, EmailID: user.EmailID }, process.env.SECRET_KEY, {
+            expiresIn: '1h' // Token expiration time
         });
+
+        res.json({ message: "Login successful", user: { UserID: user.UserID }, token: token });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
@@ -938,13 +930,9 @@ app.put("/profile", authMiddleware, async (req, res) => {
             WHERE UserID = ?
         `;
 
-        pool.execute(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, userId], (err, results) => {
-            if (err) {
-                console.error(err.message);
-                return res.status(500).json({ error: "Server error" });
-            }
-            res.json({ message: "Profile updated successfully" });
-        });
+        await pool.query(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, userId]); // Use await here
+
+        res.json({ message: "Profile updated successfully" });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
@@ -1008,23 +996,18 @@ app.post('/adminlogin', async (req, res) => {
             WHERE Username = ? AND Password = ?
         `;
 
-        pool.execute(query, [Username, Password], (err, results) => {
-            if (err) {
-                console.error('Error during login:', err);
-                return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-            }
+        const [results] = await pool.query(query, [Username, Password]); // Use await here
 
-            if (results.length > 0) {
-                // Successful login
-                res.status(200).json({
-                    message: 'Login Successful',
-                    user: results[0], // Send the user details (optional)
-                });
-            } else {
-                // Invalid credentials
-                res.status(401).json({ message: 'Invalid username or password' });
-            }
-        });
+        if (results.length > 0) {
+            // Successful login
+            res.status(200).json({
+                message: 'Login Successful',
+                user: results[0], // Send the user details (optional)
+            });
+        } else {
+            // Invalid credentials
+            res.status(401).json({ message: 'Invalid username or password' });
+        }
     } catch (err) {
         console.error('Error during login:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1045,14 +1028,9 @@ app.post('/contact-us-messages', async (req, res) => {
             VALUES (?, ?, ?, ?)
         `;
 
-        pool.execute(query, [Name, Email, ContactNumber, Message], (err, result) => {
-            if (err) {
-                console.error('Error saving message:', err);
-                return res.status(500).json({ error: 'An error occurred while saving the message.' });
-            }
+        await pool.query(query, [Name, Email, ContactNumber, Message]); // Use await here
 
-            res.status(201).json({ message: 'Message saved successfully!' });
-        });
+        res.status(201).json({ message: 'Message saved successfully!' });
     } catch (error) {
         console.error('Error saving message:', error);
         res.status(500).json({ error: 'An error occurred while saving the message.' });
@@ -1113,7 +1091,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
     try {
         // Check if the OrderID belongs to the UserID
-        const [rows] = await pool.promise().query(`
+        const [rows] = await pool.query(`
             SELECT 1 FROM Orders WHERE OrderID = ? AND UserID = ?
         `, [orderId, userId]);
 
@@ -1127,12 +1105,30 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         }
 
         const insertFileRecord = async (documentType, file) => {
-            const { originalname: fileName, path: filePath, mimetype: fileType } = file;
+            const { originalname: fileName, path: filePath } = file;
 
-            await pool.promise().query(`
-                INSERT INTO OrderFiles (OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber)
+            await pool.query(`
+                INSERT INTO OrderFiles (OrderID, UserID, DocumentType,
+                    FileName,
+                    FilePath,
+                    FileType,
+                    UploadDate,
+                    ShippingStatus,
+                    BLNumber,
+                    ShippingLines,
+                    ETA,
+                    ProformaInvoiceNumber)
                 VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
-            `, [orderId, userId, documentType, fileName, filePath, fileType, ShippingStatus || null, BLNumber || null, ShippingLines || null, ETA || null, ProformaInvoiceNumber || null]);
+            `, [orderId, userId,
+                documentType,
+                fileName,
+                filePath,
+                file.mimetype,
+                ShippingStatus || null,
+                BLNumber || null,
+                ShippingLines || null,
+                ETA || null,
+                ProformaInvoiceNumber || null]);
         };
 
         if (files.quotationFile) {
@@ -1156,12 +1152,15 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     }
 });
 
+module.exports = app;
+
+
 // API route to get files data for a specific user and order
 app.get('/get-files-data/:userId/:orderId', async (req, res) => {
     const { userId, orderId } = req.params;
 
     try {
-        const [rows] = await pool.promise().query(`
+        const [rows] = await pool.query(`
             SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType,
                    UploadDate, ShippingStatus, BLNumber,
                    ShippingLines, ETA,
@@ -1203,7 +1202,7 @@ app.get('/get-uploaded-files', async (req, res) => {
     }
 
     try {
-        const [rows] = await pool.promise().query(`
+        const [rows] = await pool.query(`
             SELECT FileID, DocumentType,
                    FileName,
                    FilePath,
@@ -1293,7 +1292,7 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
                         row['UNIT_MEASUREMENT_TYPE'] || null
                     ];
 
-                    await pool.promise().query(query, values);
+                    await pool.query(query, values);
                 }
 
                 // Cleanup: delete the uploaded file after processing
@@ -1302,7 +1301,7 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
                 res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
             } catch (error) {
                 console.error('Error inserting data:', error);
-                res.status(500).json({ message: 'Error inserting data', error });
+                res.status(500).json({ message: 'Error inserting data', error: error });
             }
         });
 });
@@ -1331,7 +1330,7 @@ app.post('/upload-single', upload.single('file'), async (req, res) => {
             fileType
         ];
 
-        await pool.promise().query(query, values);
+        await pool.query(query, values);
 
         res.status(200).json({ message: 'File uploaded successfully!', file: req.file });
     } catch (error) {
@@ -1354,19 +1353,19 @@ app.post('/enquiry-quotation-files/:orderId/:userId', upload.fields([{ name: 'qu
         return res.status(400).json({ message: 'DocumentType is required' });
     }
 
-    if (!req.files.quotationFile) {
+    if (!req.files || !req.files.quotationFile) {
         return res.status(400).json({ message: 'No quotation file uploaded' });
     }
 
     try {
         // Check if the user exists
-        const [userCheck] = await pool.promise().query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
+        const [userCheck] = await pool.query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
         if (userCheck[0].count === 0) {
             return res.status(404).json({ message: 'Invalid UserID' });
         }
 
         // Check if the order exists for the user
-        const [orderCheck] = await pool.promise().query(`
+        const [orderCheck] = await pool.query(`
             SELECT COUNT(*) AS count 
             FROM Orders 
             WHERE OrderID = ? AND UserID = ?
@@ -1379,11 +1378,11 @@ app.post('/enquiry-quotation-files/:orderId/:userId', upload.fields([{ name: 'qu
 
         const file = req.files.quotationFile[0];
         const fileName = file.originalname;
-        const filePath = `uploads/${file.filename}`;
+        const filePath = file.path; // Use the correct path from the multer file object
         const fileType = file.mimetype;
 
         // Save file metadata to the database
-        await pool.promise().query(`
+        await pool.query(`
             INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
@@ -1398,9 +1397,6 @@ app.post('/enquiry-quotation-files/:orderId/:userId', upload.fields([{ name: 'qu
     }
 });
 
-module.exports = app;
-
-
 
 // Route for user-specific file retrieval
 app.get('/enquiry-quotation-files/:userId/:orderId', authMiddleware, async (req, res) => {
@@ -1414,7 +1410,7 @@ app.get('/enquiry-quotation-files/:userId/:orderId', authMiddleware, async (req,
             WHERE UserID = ? AND OrderID = ?
         `;
 
-        const [rows] = await pool.promise().query(query, [userId, orderId]);
+        const [rows] = await pool.query(query, [userId, orderId]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: "No files found for the specified user and order" });
@@ -1439,7 +1435,7 @@ app.get('/enquiry-quotation-files-admin/:userId/:orderId', async (req, res) => {
             WHERE UserID = ? AND OrderID = ?
         `;
 
-        const [rows] = await pool.promise().query(query, [userId, orderId]);
+        const [rows] = await pool.query(query, [userId, orderId]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: "No files found for the specified user and order" });
@@ -1475,7 +1471,7 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
     let connection;
     try {
-        connection = await pool.promise().getConnection();
+        connection = await pool.getConnection();
         await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
@@ -1573,7 +1569,7 @@ app.get('/Get-orders', async (req, res) => {
                 o.UploadDate DESC
         `;
 
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.json({ msg: "Data Fetched Successfully", data: rows });
 
     } catch (err) {
@@ -1625,7 +1621,7 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
                 o.UploadDate DESC
         `;
 
-        const [rows] = await pool.promise().query(query, [userId]);
+        const [rows] = await pool.query(query, [userId]);
         res.status(200).json({ msg: 'Data Fetched Successfully', data: rows });
     } catch (err) {
         console.error('Error fetching orders:', err);
@@ -1666,7 +1662,7 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
             LIMIT 3
         `;
 
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows });
     } catch (err) {
         console.error('Error fetching orders:', err);
@@ -1678,7 +1674,7 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
 app.get('/Get-admin-customer', async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM users`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching customer count:', err);
@@ -1690,7 +1686,7 @@ app.get('/Get-admin-customer', async (req, res) => {
 app.get('/Get-admin-enquiry', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching enquiry count:', err);
@@ -1702,7 +1698,7 @@ app.get('/Get-admin-enquiry', async (req, res) => {
 app.get('/Get-admin-order', async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching order count:', err);
@@ -1714,7 +1710,7 @@ app.get('/Get-admin-order', async (req, res) => {
 app.get('/Get-admin-products', async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching product count:', err);
@@ -1726,7 +1722,7 @@ app.get('/Get-admin-products', async (req, res) => {
 app.get('/Get-admin-category', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching category count:', err);
@@ -1738,7 +1734,7 @@ app.get('/Get-admin-category', async (req, res) => {
 app.get('/Get-admin-subcategory', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching subcategory count:', err);
@@ -1750,7 +1746,7 @@ app.get('/Get-admin-subcategory', async (req, res) => {
 app.get('/Get-admin-brand', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+        const [rows] = await pool.query(query);
         res.status(200).json({ data: rows[0] }); // Directly send the count
     } catch (err) {
         console.error('Error fetching brand count:', err);
