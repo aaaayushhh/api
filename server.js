@@ -134,7 +134,7 @@
 
 
 const express = require("express");
-const mysql = require("mysql2/promise"); // Use promise-based mysql2
+const mysql = require('mysql2/promise'); // Use promise-based mysql2
 const app = express();
 const cors = require('cors');
 const fs = require('fs');
@@ -1093,13 +1093,14 @@ app.get('/Get-contact-us-messages', async (req, res) => {
             ORDER BY CreatedAt DESC
         `;
 
-        const [results] = await pool.promise().query(query);
+        const [results] = await pool.query(query); // Use pool.query directly
         res.status(200).json(results); // Return all contact messages
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'An error occurred while fetching the messages.' });
     }
 });
+
 
 // API route to upload files
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
