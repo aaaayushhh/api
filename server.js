@@ -1098,20 +1098,15 @@ app.get('/Get-contact-us-messages', async (req, res) => {
             ORDER BY CreatedAt DESC
         `;
 
-        pool.execute(query, (err, results) => {
-            if (err) {
-                console.error('Error fetching messages:', err);
-                return res.status(500).json({ error: 'An error occurred while fetching the messages.' });
-            }
+        // Use async/await with pool.promise().query
+        const [results] = await pool.promise().query(query);
 
-            res.status(200).json(results); // Return all contact messages
-        });
+        res.status(200).json(results); // Return all contact messages
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'An error occurred while fetching the messages.' });
     }
 });
-
 
 
 const store = multer({
@@ -1661,127 +1656,135 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
 
 
 
-app.get('/Get-orders-for-admin-dash', async (req, res) => {
-    try {
-        const query = `
-            SELECT 
-                o.OrderID,
-                o.CartonQty,
-                o.ProductID,
-                o.UploadDate,
-                cm.PRODUCT_DESCRIPTION,
-                cm.SKU_CODE,
-                cm.CATEGORY,
-                cm.BRAND,
-                cm.SUB_CATEGORY,
-                cm.UNIT,
-                cm.UNIT_PER_CTN,
-                cm.WEIGHT_PER_PKT_GRAMS,
-                u.EmailID,  -- Changed from 'u.username' to 'u.EmailID'
-                u.UserID,
-                u.FirstName,
-                u.LastName,
-                u.CompanyName
-            FROM 
-                Orders o
-            INNER JOIN 
-                cornitos_master cm ON o.ProductID = cm.ID
-            INNER JOIN 
-                users u ON o.UserID = u.UserID
-            ORDER BY 
-                o.UploadDate DESC
-            LIMIT 3
-        `;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-orders-for-admin-dash', (req, res) => {
+    const query = `
+        SELECT 
+            o.OrderID,
+            o.CartonQty,
+            o.ProductID,
+            o.UploadDate,
+            cm.PRODUCT_DESCRIPTION,
+            cm.SKU_CODE,
+            cm.CATEGORY,
+            cm.BRAND,
+            cm.SUB_CATEGORY,
+            cm.UNIT,
+            cm.UNIT_PER_CTN,
+            cm.WEIGHT_PER_PKT_GRAMS,
+            u.EmailID,
+            u.UserID,
+            u.FirstName,
+            u.LastName,
+            u.CompanyName
+        FROM 
+            Orders o
+        INNER JOIN 
+            cornitos_master cm ON o.ProductID = cm.ID
+        INNER JOIN 
+            users u ON o.UserID = u.UserID
+        ORDER BY 
+            o.UploadDate DESC
+        LIMIT 3
+    `;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching orders:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching orders:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total customer count for the admin
-app.get('/Get-admin-customer', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(*) AS TotalCount FROM users`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-customer', (req, res) => {
+    const query = `SELECT COUNT(*) AS TotalCount FROM users`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching customer count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching customer count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total distinct order enquiry count for the admin
-app.get('/Get-admin-enquiry', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-enquiry', (req, res) => {
+    const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching enquiry count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching enquiry count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total order count for the admin
-app.get('/Get-admin-order', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-order', (req, res) => {
+    const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching order count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching order count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total product count for the admin
-app.get('/Get-admin-products', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-products', (req, res) => {
+    const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching product count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching product count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total distinct category count for the admin
-app.get('/Get-admin-category', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-category', (req, res) => {
+    const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching category count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching category count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total distinct subcategory count for the admin
-app.get('/Get-admin-subcategory', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-subcategory', (req, res) => {
+    const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching subcategory count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching subcategory count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for getting total distinct brand count for the admin
-app.get('/Get-admin-brand', async (req, res) => {
-    try {
-        const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
-        const [rows] = await pool.promise().query(query);
+app.get('/Get-admin-brand', (req, res) => {
+    const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
+
+    connection.query(query, (err, rows) => {
+        if (err) {
+            console.error('Error fetching brand count:', err);
+            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        }
         res.status(200).json({ data: rows });
-    } catch (err) {
-        console.error('Error fetching brand count:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
-    }
+    });
 });
 
 // Route for downloading the product catalogue
