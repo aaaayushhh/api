@@ -134,7 +134,7 @@
 
 
 const express = require("express");
-const mysql = require("mysql2");
+const mysql = require("mysql2/promise"); // Use promise-based mysql2
 const app = express();
 const cors = require('cors');
 const fs = require('fs');
@@ -142,7 +142,6 @@ const multer = require('multer');
 const path = require('path');
 const csvParser = require('csv-parser');
 const bodyParser = require('body-parser');
-// const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const authMiddleware = require('./auth');
@@ -183,26 +182,30 @@ app.use(bodyParser.json());
 //     });
 
 
-
-
-
-const connection = mysql.createConnection({
-    host: "deepaspheresolutions.co.in",   // Example: "localhost" or a remote host
+// Create a MySQL connection pool
+const pool = mysql.createPool({
+    host: "deepaspheresolutions.co.in",
     user: "ayush",
     password: "ayush@123!@#",
-    database: "eximtrac"
+    database: "eximtrac",
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
 });
 
-connection.connect((err) => {
-    if (err) {
-        console.error("Error connecting to MySQL:", err);
-        return;
+
+// Test the database connection
+async function testConnection() {
+    try {
+        const connection = await pool.getConnection();
+        console.log("Successfully connected to MySQL database");
+        connection.release();
+    } catch (error) {
+        console.error("Error connecting to MySQL:", error.message);
     }
-    console.log("Connected to MySQL database");
-});
+}
 
-module.exports = connection;
-
+testConnection();
 
 
 // sql.connect(config)
@@ -212,25 +215,18 @@ module.exports = connection;
 // Define routes
 app.get("/GetAllProducts", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
-        const result = await pool.request().query("SELECT * FROM cornitos_master");
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const [rows] = await pool.query("SELECT * FROM cornitos_master");
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
-
 app.get("/GetCategoryandSubCategory", async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
-            throw new Error("Database connection is not initialized");
-        }
-        const result = await pool.request().query("select distinct CATEGORY, SUB_CATEGORY from cornitos_master");
-        res.json({ msg: "Data Fetched Successfully", data: result.recordset });
+        const [rows] = await pool.query("select distinct CATEGORY, SUB_CATEGORY from cornitos_master");
+        res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
@@ -294,12 +290,10 @@ app.get("/GetSubCategory", async (req, res) => {
         const { category } = req.query;
         let query = "SELECT DISTINCT SUB_CATEGORY FROM cornitos_master";
         let params = [];
-
         if (category) {
             query += " WHERE CATEGORY = ?";
             params.push(category);
         }
-
         const [rows] = await pool.query(query, params);
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
@@ -314,7 +308,6 @@ app.get("/GetBrand", async (req, res) => {
         const { category, subCategory } = req.query;
         let query = "SELECT DISTINCT BRAND FROM cornitos_master";
         let params = [];
-
         if (category || subCategory) {
             query += " WHERE";
             if (category) {
@@ -326,7 +319,6 @@ app.get("/GetBrand", async (req, res) => {
                 params.push(subCategory);
             }
         }
-
         const [rows] = await pool.query(query, params);
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
@@ -351,12 +343,12 @@ app.get("/Get-add-to-container/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
         const [rows] = await pool.query(`
-            SELECT 
+            SELECT
                 tc.TC_ID,
                 tc.Quantity,
                 tc.ProductID,
                 tc.CartonQty,
-                cm.PRODUCT_DESCRIPTION, 
+                cm.PRODUCT_DESCRIPTION,
                 cm.CATEGORY,
                 cm.BRAND,
                 cm.SUB_CATEGORY,
@@ -365,60 +357,58 @@ app.get("/Get-add-to-container/:userId", async (req, res) => {
                 cm.WEIGHT_PER_PKT_GRAMS,
                 tc.UserID,
                 l.username
-            FROM to_container tc
-            INNER JOIN cornitos_master cm ON tc.ProductID = cm.ID
-            INNER JOIN login l ON tc.UserID = l.ID
-            WHERE tc.UserID = ?`,
-            [userId]
-        );
-
+            FROM
+                to_container tc
+            INNER JOIN
+                cornitos_master cm ON tc.ProductID = cm.ID
+            INNER JOIN
+                login l ON tc.UserID = l.ID
+            WHERE
+                tc.UserID = ?
+        `, [userId]);
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
-
-
 
 app.get("/Get-data-for-order-page/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
         const [rows] = await pool.query(`
-            SELECT DISTINCT OrderID, UploadDate, UserID 
-            FROM container_place_enquiry 
-            WHERE UserID = ?`,
-            [userId]
-        );
-
+            SELECT DISTINCT OrderID, UploadDate, UserID
+            FROM container_place_enquiry
+            WHERE UserID = ?
+        `, [userId]);
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
-
-
 
 app.get("/Get-data-for-user-side-enquiry-page/:userId", async (req, res) => {
     try {
         const { userId } = req.params;
         const [rows] = await pool.query(`
-            SELECT DISTINCT 
-                cpe.OrderID, 
-                cpe.UploadDate, 
+            SELECT DISTINCT
+                cpe.OrderID,
+                cpe.UploadDate,
                 cpe.UserID,
-                u.FirstName, 
-                u.LastName, 
+                u.FirstName,
+                u.LastName,
                 u.EmailID,
                 u.CompanyName
-            FROM container_place_enquiry cpe
-            JOIN users u ON cpe.UserID = u.UserID
-            WHERE cpe.UserID = ?
-            ORDER BY UploadDate DESC`,
-            [userId]
-        );
-
+            FROM
+                container_place_enquiry cpe
+            JOIN
+                users u ON cpe.UserID = u.UserID
+            WHERE
+                cpe.UserID = ?
+            ORDER BY
+                UploadDate DESC
+        `, [userId]);
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
@@ -426,25 +416,24 @@ app.get("/Get-data-for-user-side-enquiry-page/:userId", async (req, res) => {
     }
 });
 
-
-
 app.get("/Get-data-for-enquiry-page", async (req, res) => {
     try {
-        // Execute the SQL query with a join to the users table
         const [rows] = await pool.query(`
-            SELECT DISTINCT 
-                cpe.OrderID, 
-                cpe.UploadDate, 
+            SELECT DISTINCT
+                cpe.OrderID,
+                cpe.UploadDate,
                 cpe.UserID,
-                u.FirstName, 
-                u.LastName, 
+                u.FirstName,
+                u.LastName,
                 u.EmailID,
                 u.CompanyName
-            FROM container_place_enquiry cpe
-            JOIN users u ON cpe.UserID = u.UserID
-            ORDER BY cpe.UploadDate DESC
+            FROM
+                container_place_enquiry cpe
+            JOIN
+                users u ON cpe.UserID = u.UserID
+            ORDER BY
+                cpe.UploadDate DESC
         `);
-
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
@@ -454,22 +443,23 @@ app.get("/Get-data-for-enquiry-page", async (req, res) => {
 
 app.get("/Get-data-for-admin-dash-enquiry-page", async (req, res) => {
     try {
-        // Execute the SQL query with a join to the users table
         const [rows] = await pool.query(`
-            SELECT DISTINCT 
-                cpe.OrderID, 
-                cpe.UploadDate, 
+            SELECT DISTINCT
+                cpe.OrderID,
+                cpe.UploadDate,
                 cpe.UserID,
-                u.FirstName, 
-                u.LastName, 
+                u.FirstName,
+                u.LastName,
                 u.EmailID,
                 u.CompanyName
-            FROM container_place_enquiry cpe
-            JOIN users u ON cpe.UserID = u.UserID
-            ORDER BY cpe.UploadDate DESC
+            FROM
+                container_place_enquiry cpe
+            JOIN
+                users u ON cpe.UserID = u.UserID
+            ORDER BY
+                cpe.UploadDate DESC
             LIMIT 3
         `);
-
         res.json({ msg: "Data Fetched Successfully", data: rows });
     } catch (err) {
         console.error("Query Failed:", err);
@@ -477,25 +467,21 @@ app.get("/Get-data-for-admin-dash-enquiry-page", async (req, res) => {
     }
 });
 
-
-
 app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, async (req, res) => {
-    const { userId } = req.params; // Get UserID from route parameter
-
+    const { userId } = req.params;
     try {
-        // Validate UserID
         if (!userId) {
             return res.status(400).json({ message: 'UserID is required' });
         }
 
         const query = `
-            SELECT 
+            SELECT
                 cpe.CPE_ID,
                 cpe.CartonQty,
                 cpe.ProductID,
                 cpe.OrderID,
                 cpe.UploadDate,
-                c_m.PRODUCT_DESCRIPTION, -- Data from cornitos_master
+                c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
                 c_m.CATEGORY,
                 c_m.BRAND,
@@ -504,18 +490,17 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 cpe.UserID,
-                lo.username -- Data from login
-            FROM 
+                lo.username
+            FROM
                 container_place_enquiry cpe
-            INNER JOIN 
+            INNER JOIN
                 cornitos_master c_m ON cpe.ProductID = c_m.ID
-            INNER JOIN 
+            INNER JOIN
                 login lo ON cpe.UserID = lo.ID
             WHERE
                 cpe.UserID = ?
         `;
-
-        const [rows] = await pool.query(query, [userId]); // Pass UserID dynamically
+        const [rows] = await pool.query(query, [userId]);
         res.status(200).json({ data: rows });
     } catch (err) {
         console.error('Error fetching data:', err);
@@ -524,22 +509,21 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
 });
 
 app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (req, res) => {
-    const { userId, orderId } = req.params; // Get UserID and OrderID from route parameters
+    const { userId, orderId } = req.params;
 
     try {
-        // Validate UserID
         if (!userId) {
             return res.status(400).json({ message: "UserID is required" });
         }
 
         let query = `
-            SELECT 
+            SELECT
                 cpe.CPE_ID,
                 cpe.CartonQty,
                 cpe.ProductID,
                 cpe.OrderID,
                 cpe.UploadDate,
-                c_m.PRODUCT_DESCRIPTION, -- Data from cornitos_master
+                c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
                 c_m.CATEGORY,
                 c_m.BRAND,
@@ -548,17 +532,16 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 cpe.UserID,
-                lo.username -- Data from login
-            FROM 
+                lo.username
+            FROM
                 container_place_enquiry cpe
-            INNER JOIN 
+            INNER JOIN
                 cornitos_master c_m ON cpe.ProductID = c_m.ID
-            INNER JOIN 
+            INNER JOIN
                 login lo ON cpe.UserID = lo.ID
             WHERE
                 cpe.UserID = ?
         `;
-
         const queryParams = [userId];
 
         if (orderId) {
@@ -574,26 +557,19 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
     }
 });
 
-
-
-
-
-// POST API to insert data into the table
-
-const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique IDs
+const { v4: uuidv4 } = require('uuid');
 
 // Add to Container
 app.post('/add-to-container', authMiddleware, async (req, res) => {
-    console.log(req.body); // Debugging: Log request body
+    console.log(req.body);
+
     try {
         const { Quantity, ProductID, UserID, CartonQty } = req.body;
 
-        // Validate inputs
         if (!Quantity || !ProductID || !UserID || !CartonQty) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-        // Check if ProductID and UserID exist in their respective tables
         const checkProductQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE ID = ?`;
         const checkUserQuery = `SELECT COUNT(*) AS count FROM login WHERE ID = ?`;
 
@@ -603,11 +579,11 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
         if (productResult.count === 0) {
             return res.status(400).json({ message: 'Invalid ProductID' });
         }
+
         if (userResult.count === 0) {
             return res.status(400).json({ message: 'Invalid UserID' });
         }
 
-        // Insert into the database
         const insertQuery = `INSERT INTO to_container (Quantity, ProductID, UserID, CartonQty) VALUES (?, ?, ?, ?)`;
         await pool.query(insertQuery, [Quantity, ProductID, UserID, CartonQty]);
 
@@ -620,14 +596,12 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
 
 // Container Place Enquiry
 app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
-    const data = req.body; // This should be an array of objects
+    const data = req.body;
 
-    // Validate the input
     if (!Array.isArray(data) || data.length === 0) {
         return res.status(400).json({ message: 'An array of data is required' });
     }
 
-    // Validate each item in the array
     for (const item of data) {
         const { ProductID, UserID, CartonQty } = item;
         if (!ProductID || !UserID || CartonQty === undefined) {
@@ -636,26 +610,34 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
     }
 
     try {
-        // Generate a unique Order ID (UUID) for this batch of data
-        const orderId = uuidv4().slice(0, 15); // Ensure OrderID fits VARCHAR(15)
+        // Generate a unique OrderID
+        const orderId = uuidv4();
 
-        // Prepare query for multiple inserts
-        const values = data.map(() => `(?, ?, ?, ?)`).join(', ');
-        const query = `INSERT INTO container_place_enquiry (OrderID, CartonQty, ProductID, UserID) VALUES ${values}`;
+        // Get the current timestamp for UploadDate
+        const uploadDate = new Date();
 
-        // Flatten array of values
-        const queryParams = [];
-        data.forEach((item) => {
-            queryParams.push(orderId, item.CartonQty, item.ProductID, item.UserID);
-        });
+        // Prepare the SQL query for inserting multiple rows
+        const query = `
+            INSERT INTO container_place_enquiry (ProductID, UserID, CartonQty, OrderID, UploadDate)
+            VALUES ?
+        `;
 
-        // Execute query
-        await pool.query(query, queryParams);
+        // Map the data to the format required by the query
+        const values = data.map(item => [
+            item.ProductID,
+            item.UserID,
+            item.CartonQty,
+            orderId,
+            uploadDate
+        ]);
 
-        res.status(201).json({ message: 'Data inserted successfully', orderId: orderId });
-    } catch (err) {
-        console.error('Error inserting data:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        // Execute the query
+        await pool.query(query, [values]);
+
+        res.status(201).json({ message: 'Enquiry placed successfully!', orderId: orderId });
+    } catch (error) {
+        console.error('Error in /container-place-enquiry:', error.message, error.stack);
+        res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
 
@@ -724,8 +706,6 @@ app.put("/update-categories", async (req, res) => {
     }
 });
 
-
-
 app.put("/update-subcategories", async (req, res) => {
     const { oldName, newName } = req.body;
 
@@ -752,7 +732,6 @@ app.put("/update-subcategories", async (req, res) => {
     }
 });
 
-
 app.put("/update-brand", async (req, res) => {
     const { oldName, newName } = req.body;
 
@@ -778,6 +757,7 @@ app.put("/update-brand", async (req, res) => {
         return res.status(500).json({ message: "Error updating brand", error: err.message });
     }
 });
+
 
 
 
@@ -971,7 +951,6 @@ app.put("/profile", authMiddleware, async (req, res) => {
     }
 });
 
-
 // GET API to fetch user profile
 app.get("/get-profile/:userId", async (req, res) => {
     const { userId } = req.params;
@@ -1052,8 +1031,6 @@ app.post('/adminlogin', async (req, res) => {
     }
 });
 
-
-
 // API endpoint to save contact messages
 app.post('/contact-us-messages', async (req, res) => {
     const { Name, Email, ContactNumber, Message } = req.body;
@@ -1082,7 +1059,25 @@ app.post('/contact-us-messages', async (req, res) => {
     }
 });
 
+
 // API endpoint to fetch all contact messages
+// Configure multer for file uploads
+const store = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            cb(null, 'uploads/'); // Ensure this directory exists
+        },
+        filename: function (req, file, cb) {
+            cb(null, `${Date.now()}-${file.originalname}`);
+        },
+    }),
+}).fields([
+    { name: 'quotationFile', maxCount: 1 },
+    { name: 'proformaFile', maxCount: 1 },
+    { name: 'shippingDocuments', maxCount: 20 },
+]);
+
+// API route to get contact messages
 app.get('/Get-contact-us-messages', async (req, res) => {
     try {
         const query = `
@@ -1098,31 +1093,13 @@ app.get('/Get-contact-us-messages', async (req, res) => {
             ORDER BY CreatedAt DESC
         `;
 
-        // Use async/await with pool.promise().query
         const [results] = await pool.promise().query(query);
-
         res.status(200).json(results); // Return all contact messages
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ error: 'An error occurred while fetching the messages.' });
     }
 });
-
-
-const store = multer({
-    storage: multer.diskStorage({
-        destination: function (req, file, cb) {
-            cb(null, 'uploads/'); // Ensure this directory exists
-        },
-        filename: function (req, file, cb) {
-            cb(null, `${Date.now()}-${file.originalname}`);
-        },
-    }),
-}).fields([
-    { name: 'quotationFile', maxCount: 1 },
-    { name: 'proformaFile', maxCount: 1 },
-    { name: 'shippingDocuments', maxCount: 20 },
-]);
 
 // API route to upload files
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
@@ -1184,7 +1161,10 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
 
     try {
         const [rows] = await pool.promise().query(`
-            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber
+            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType,
+                   UploadDate, ShippingStatus, BLNumber,
+                   ShippingLines, ETA,
+                   ProformaInvoiceNumber
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ?
         `, [userId, orderId]);
@@ -1223,7 +1203,14 @@ app.get('/get-uploaded-files', async (req, res) => {
 
     try {
         const [rows] = await pool.promise().query(`
-            SELECT FileID, DocumentType, FileName, FilePath, FileType, ShippingStatus, BLNumber, ShippingLines, ETA
+            SELECT FileID, DocumentType,
+                   FileName,
+                   FilePath,
+                   FileType,
+                   ShippingStatus,
+                   BLNumber,
+                   ShippingLines,
+                   ETA
             FROM UploadedFiles
             WHERE UserID = ?
         `, [UserID]);
@@ -1238,16 +1225,32 @@ app.get('/get-uploaded-files', async (req, res) => {
 module.exports = app;
 
 
+// Multer configuration for file uploads
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadPath = 'uploads/';
+        if (!fs.existsSync(uploadPath)) {
+            fs.mkdirSync(uploadPath);
+        }
+        cb(null, uploadPath);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    },
+});
+
+const upload = multer({ storage });
 
 // Multer setup for file uploads
-app.post('/upload-csv', async (req, res) => {
+app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
     console.log(req.file); // Should log file details if uploaded correctly
     if (!req.file) {
         return res.status(400).json({ message: "No file uploaded." });
     }
-    const filePath = req.file.path;
 
+    const filePath = req.file.path;
     const rows = [];
+
     // Read and parse the CSV file
     fs.createReadStream(filePath)
         .pipe(csvParser())
@@ -1304,7 +1307,7 @@ app.post('/upload-csv', async (req, res) => {
 });
 
 // Endpoint to upload a single file
-app.post('/upload-single', async (req, res) => {
+app.post('/upload-single', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded.' });
     }
@@ -1336,25 +1339,8 @@ app.post('/upload-single', async (req, res) => {
     }
 });
 
-
-// Multer configuration
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = 'uploads/';
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath);
-        }
-        cb(null, uploadPath);
-    },
-    filename: (req, file, cb) => {
-        cb(null, `${Date.now()}-${file.originalname}`);
-    },
-});
-
-const storing = multer({ storage }).fields([{ name: 'quotationFile', maxCount: 1 }]);
-
-// Route for file upload
-app.post('/enquiry-quotation-files/:orderId/:userId', async (req, res) => {
+// Route for uploading quotation files
+app.post('/enquiry-quotation-files/:orderId/:userId', upload.fields([{ name: 'quotationFile', maxCount: 1 }]), async (req, res) => {
     const { orderId, userId } = req.params;
     const { DocumentType } = req.body;
 
@@ -1367,78 +1353,72 @@ app.post('/enquiry-quotation-files/:orderId/:userId', async (req, res) => {
         return res.status(400).json({ message: 'DocumentType is required' });
     }
 
-    // Handle file upload
-    storing(req, res, async (err) => {
-        if (err) {
-            console.error('Multer error:', err);
-            return res.status(500).json({ message: 'File upload failed', error: err.message });
+    if (!req.files.quotationFile) {
+        return res.status(400).json({ message: 'No quotation file uploaded' });
+    }
+
+    try {
+        // Check if the user exists
+        const [userCheck] = await pool.promise().query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
+        if (userCheck[0].count === 0) {
+            return res.status(404).json({ message: 'Invalid UserID' });
         }
 
-        try {
-            // Check if the user exists
-            const [userCheck] = await pool.promise().query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
-            if (userCheck[0].count === 0) {
-                return res.status(404).json({ message: 'Invalid UserID' });
-            }
+        // Check if the order exists for the user
+        const [orderCheck] = await pool.promise().query(`
+            SELECT COUNT(*) AS count 
+            FROM Orders 
+            WHERE OrderID = ? AND UserID = ?
+        `, [orderId, userId]);
 
-            // Check if the order exists for the user
-            const [orderCheck] = await pool.promise().query(`
-                SELECT COUNT(*) AS count 
-                FROM Orders 
-                WHERE OrderID = ? AND UserID = ?
-            `, [orderId, userId]);
-            if (orderCheck[0].count === 0) {
-                console.error(`Invalid OrderID: ${orderId} for UserID: ${userId}`);
-                return res.status(404).json({ message: 'Invalid OrderID or Order does not belong to the user' });
-            }
-
-            const uploadedFiles = req.files.quotationFile || [];
-            if (uploadedFiles.length === 0) {
-                return res.status(400).json({ message: 'No file uploaded' });
-            }
-
-            const file = uploadedFiles[0];
-            const fileName = file.originalname;
-            const filePath = `uploads/${file.filename}`;
-            const fileType = file.mimetype;
-
-            // Save file metadata to the database
-            await pool.promise().query(`
-                INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
-
-            res.status(200).json({
-                message: 'File uploaded and metadata saved to database successfully!',
-                fileDetails: { fileName, filePath, fileType }
-            });
-        } catch (error) {
-            console.error('Error saving file metadata to database:', error);
-            res.status(500).json({ message: 'Failed to save file metadata to database', error: error.message });
+        if (orderCheck[0].count === 0) {
+            console.error(`Invalid OrderID: ${orderId} for UserID: ${userId}`);
+            return res.status(404).json({ message: 'Invalid OrderID or Order does not belong to the user' });
         }
-    });
+
+        const file = req.files.quotationFile[0];
+        const fileName = file.originalname;
+        const filePath = `uploads/${file.filename}`;
+        const fileType = file.mimetype;
+
+        // Save file metadata to the database
+        await pool.promise().query(`
+            INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
+
+        res.status(200).json({
+            message: 'File uploaded and metadata saved to database successfully!',
+            fileDetails: { fileName, filePath, fileType }
+        });
+    } catch (error) {
+        console.error('Error saving file metadata to database:', error);
+        res.status(500).json({ message: 'Failed to save file metadata to database', error: error.message });
+    }
 });
 
 module.exports = app;
 
 
+
 // Route for user-specific file retrieval
 app.get('/enquiry-quotation-files/:userId/:orderId', authMiddleware, async (req, res) => {
-    const { userId, orderId } = req.params; // Extract userId and orderId from route parameters
+    const { userId, orderId } = req.params;
 
     try {
         // Query files specific to the authenticated user and order
-        const [rows] = await pool.promise().query(`
+        const query = `
             SELECT FileName, FilePath, FileType, UploadDate 
             FROM EnquiryQuotationFiles
             WHERE UserID = ? AND OrderID = ?
-        `, [userId, orderId]);
+        `;
+
+        const [rows] = await pool.promise().query(query, [userId, orderId]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: "No files found for the specified user and order" });
         }
 
-        // Return the file metadata
         res.status(200).json({ files: rows });
     } catch (error) {
         console.error("Error retrieving files:", error);
@@ -1446,31 +1426,30 @@ app.get('/enquiry-quotation-files/:userId/:orderId', authMiddleware, async (req,
     }
 });
 
-// Route for admin-specific file retrieval
+// API for admin file retrieval for a specific user and order
 app.get('/enquiry-quotation-files-admin/:userId/:orderId', async (req, res) => {
-    const { userId, orderId } = req.params; // Extract userId and orderId from route parameters
+    const { userId, orderId } = req.params;
 
     try {
         // Query files specific to the user and order
-        const [rows] = await pool.promise().query(`
+        const query = `
             SELECT FileName, FilePath, FileType, UploadDate 
             FROM EnquiryQuotationFiles
             WHERE UserID = ? AND OrderID = ?
-        `, [userId, orderId]);
+        `;
+
+        const [rows] = await pool.promise().query(query, [userId, orderId]);
 
         if (rows.length === 0) {
             return res.status(404).json({ message: "No files found for the specified user and order" });
         }
 
-        // Return the file metadata
         res.status(200).json({ files: rows });
     } catch (error) {
         console.error("Error retrieving files:", error);
         res.status(500).json({ message: "Failed to retrieve files", error: error.message });
     }
 });
-
-
 
 // API for downloading a specific file
 app.get('/download-file/:fileName', (req, res) => {
@@ -1485,9 +1464,9 @@ app.get('/download-file/:fileName', (req, res) => {
     });
 });
 
-// Route to convert enquiry to order
+// API to convert enquiry to order
 app.post('/convert-enquiry-to-order', async (req, res) => {
-    const { cpeIds } = req.body; // assuming you're passing CPE_IDs now instead of OrderIDs
+    const { cpeIds } = req.body;
 
     if (!Array.isArray(cpeIds) || cpeIds.length === 0) {
         return res.status(400).json({ message: 'No CPE_IDs provided. Please select at least one CPE_ID.' });
@@ -1495,8 +1474,8 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
     let connection;
     try {
-        connection = await pool.promise().getConnection(); // Get a connection from the pool
-        await connection.beginTransaction(); // Start a transaction
+        connection = await pool.promise().getConnection();
+        await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
             // Check if CPE_ID already exists in Orders
@@ -1563,10 +1542,10 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
     }
 });
 
-
+// API to Get Orders Data
 app.get('/Get-orders', async (req, res) => {
     try {
-        if (!pool) { // Check if connection is available
+        if (!pool) {
             throw new Error("Database connection is not initialized");
         }
 
@@ -1593,19 +1572,21 @@ app.get('/Get-orders', async (req, res) => {
                 o.UploadDate DESC
         `;
 
-        // Execute the query
         const [rows] = await pool.promise().query(query);
-
         res.json({ msg: "Data Fetched Successfully", data: rows });
+
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
 
+module.exports = app;
+
+
 // Route for getting orders by user ID
 app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
-    const { userId } = req.params; // Extracting userId from route parameters
+    const { userId } = req.params;
 
     try {
         // SQL query with parameterized input for fetching orders specific to the user
@@ -1643,10 +1624,7 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
                 o.UploadDate DESC
         `;
 
-        // Execute the query with the userId parameter
         const [rows] = await pool.promise().query(query, [userId]);
-
-        // Send back the response
         res.status(200).json({ msg: 'Data Fetched Successfully', data: rows });
     } catch (err) {
         console.error('Error fetching orders:', err);
@@ -1654,140 +1632,132 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
     }
 });
 
+// API to Get Orders Data for Admin Dashboard
+app.get('/Get-orders-for-admin-dash', async (req, res) => {
+    try {
+        const query = `
+            SELECT 
+                o.OrderID,
+                o.CartonQty,
+                o.ProductID,
+                o.UploadDate,
+                cm.PRODUCT_DESCRIPTION,
+                cm.SKU_CODE,
+                cm.CATEGORY,
+                cm.BRAND,
+                cm.SUB_CATEGORY,
+                cm.UNIT,
+                cm.UNIT_PER_CTN,
+                cm.WEIGHT_PER_PKT_GRAMS,
+                u.EmailID,
+                u.UserID,
+                u.FirstName,
+                u.LastName,
+                u.CompanyName
+            FROM 
+                Orders o
+            INNER JOIN 
+                cornitos_master cm ON o.ProductID = cm.ID
+            INNER JOIN 
+                users u ON o.UserID = u.UserID
+            ORDER BY 
+                o.UploadDate DESC
+            LIMIT 3
+        `;
 
-
-app.get('/Get-orders-for-admin-dash', (req, res) => {
-    const query = `
-        SELECT 
-            o.OrderID,
-            o.CartonQty,
-            o.ProductID,
-            o.UploadDate,
-            cm.PRODUCT_DESCRIPTION,
-            cm.SKU_CODE,
-            cm.CATEGORY,
-            cm.BRAND,
-            cm.SUB_CATEGORY,
-            cm.UNIT,
-            cm.UNIT_PER_CTN,
-            cm.WEIGHT_PER_PKT_GRAMS,
-            u.EmailID,
-            u.UserID,
-            u.FirstName,
-            u.LastName,
-            u.CompanyName
-        FROM 
-            Orders o
-        INNER JOIN 
-            cornitos_master cm ON o.ProductID = cm.ID
-        INNER JOIN 
-            users u ON o.UserID = u.UserID
-        ORDER BY 
-            o.UploadDate DESC
-        LIMIT 3
-    `;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching orders:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
+        const [rows] = await pool.promise().query(query);
         res.status(200).json({ data: rows });
-    });
+    } catch (err) {
+        console.error('Error fetching orders:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total customer count for the admin
-app.get('/Get-admin-customer', (req, res) => {
-    const query = `SELECT COUNT(*) AS TotalCount FROM users`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching customer count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Customer Count for Admin
+app.get('/Get-admin-customer', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(*) AS TotalCount FROM users`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching customer count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total distinct order enquiry count for the admin
-app.get('/Get-admin-enquiry', (req, res) => {
-    const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching enquiry count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Distinct Order Enquiry Count for Admin
+app.get('/Get-admin-enquiry', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching enquiry count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total order count for the admin
-app.get('/Get-admin-order', (req, res) => {
-    const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching order count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Order Count for Admin
+app.get('/Get-admin-order', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching order count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total product count for the admin
-app.get('/Get-admin-products', (req, res) => {
-    const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching product count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Product Count for Admin
+app.get('/Get-admin-products', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching product count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total distinct category count for the admin
-app.get('/Get-admin-category', (req, res) => {
-    const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching category count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Distinct Category Count for Admin
+app.get('/Get-admin-category', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching category count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total distinct subcategory count for the admin
-app.get('/Get-admin-subcategory', (req, res) => {
-    const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching subcategory count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Distinct Subcategory Count for Admin
+app.get('/Get-admin-subcategory', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching subcategory count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for getting total distinct brand count for the admin
-app.get('/Get-admin-brand', (req, res) => {
-    const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
-
-    connection.query(query, (err, rows) => {
-        if (err) {
-            console.error('Error fetching brand count:', err);
-            return res.status(500).json({ message: 'Internal Server Error', error: err.message });
-        }
-        res.status(200).json({ data: rows });
-    });
+// API to Get Total Distinct Brand Count for Admin
+app.get('/Get-admin-brand', async (req, res) => {
+    try {
+        const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
+        const [rows] = await pool.promise().query(query);
+        res.status(200).json({ data: rows[0] }); // Directly send the count
+    } catch (err) {
+        console.error('Error fetching brand count:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
 });
 
-// Route for downloading the product catalogue
+// API to Download the Product Catalogue
 app.get('/download-catalogue', (req, res) => {
     const filePath = path.join(__dirname, 'EXIMTRAC INDIAN MERCHANT GROCERY EXPORTER PRODUCT CATALOGUE 2024.pdf');
     res.download(filePath, 'EXIMTRAC INDIAN MERCHANT GROCERY EXPORTER PRODUCT CATALOGUE 2024.pdf', (err) => {
@@ -1797,6 +1767,8 @@ app.get('/download-catalogue', (req, res) => {
         }
     });
 });
+
+module.exports = app;
 
 
 
