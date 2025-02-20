@@ -356,13 +356,13 @@ app.get("/Get-add-to-container/:userId", async (req, res) => {
                 cm.UNIT_PER_CTN,
                 cm.WEIGHT_PER_PKT_GRAMS,
                 tc.UserID,
-                l.username
+                u.username
             FROM
                 to_container tc
             INNER JOIN
                 cornitos_master cm ON tc.ProductID = cm.ID
             INNER JOIN
-                login l ON tc.UserID = l.ID
+                users u ON tc.UserID = u.ID
             WHERE
                 tc.UserID = ?
         `, [userId]);
