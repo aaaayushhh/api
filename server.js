@@ -1095,42 +1095,30 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
             SELECT 1 FROM Orders WHERE OrderID = ? AND UserID = ?
         `, [orderId, userId]);
 
-        if (rows.length === 0) {
+        if (!rows?.length) {
             return res.status(404).json({ message: 'Order not found for this user' });
         }
 
-        const files = req.files;
-        if (!files) {
+        // Check if files were uploaded
+        const files = req.files || {};
+        if (Object.keys(files).length === 0) {
             return res.status(400).json({ message: 'No files uploaded' });
         }
 
+        // Function to insert file records
         const insertFileRecord = async (documentType, file) => {
-            const { originalname: fileName, path: filePath } = file;
+            const { originalname: fileName, path: filePath = '', mimetype: fileType = '' } = file;
 
             await pool.query(`
-                INSERT INTO OrderFiles (OrderID, UserID, DocumentType,
-                    FileName,
-                    FilePath,
-                    FileType,
-                    UploadDate,
-                    ShippingStatus,
-                    BLNumber,
-                    ShippingLines,
-                    ETA,
-                    ProformaInvoiceNumber)
+                INSERT INTO OrderFiles 
+                (OrderID, UserID, DocumentType, FileName, FilePath, FileType, 
+                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber)
                 VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
-            `, [orderId, userId,
-                documentType,
-                fileName,
-                filePath,
-                file.mimetype,
-                ShippingStatus || null,
-                BLNumber || null,
-                ShippingLines || null,
-                ETA || null,
-                ProformaInvoiceNumber || null]);
+            `, [orderId, userId, documentType, fileName, filePath, fileType,
+                ShippingStatus || null, BLNumber || null, ShippingLines || null, ETA || null, ProformaInvoiceNumber || null]);
         };
 
+        // Upload different types of files
         if (files.quotationFile) {
             await insertFileRecord('Quotation', files.quotationFile[0]);
         }
@@ -1148,7 +1136,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         res.status(200).json({ message: 'Files uploaded successfully' });
     } catch (error) {
         console.error('Error uploading files:', error);
-        res.status(500).json({ message: 'File upload error', error: error.message });
+        res.status(500).json({ message: 'Internal Server Error. Please try again later.' });
     }
 });
 
@@ -1542,31 +1530,17 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 // API to Get Orders Data
 app.get('/Get-orders', async (req, res) => {
     try {
-        if (!pool) {
-            throw new Error("Database connection is not initialized");
-        }
+        if (!pool) throw new Error("Database connection is not initialized");
 
-        // SQL query with JOINs for orders, users, and order files
         const query = `
             SELECT DISTINCT
-                o.OrderID,
-                o.CartonQty,
-                o.ProductID,
-                o.UploadDate,
-                u.EmailID,
-                u.UserID,
-                u.FirstName,
-                u.LastName,
-                u.CompanyName,
+                o.OrderID, o.CartonQty, o.ProductID, o.UploadDate,
+                u.EmailID, u.UserID, u.FirstName, u.LastName, u.CompanyName,
                 ofiles.ShippingStatus
-            FROM 
-                Orders o
-            INNER JOIN 
-                users u ON o.UserID = u.UserID
-            LEFT JOIN 
-                OrderFiles ofiles ON o.OrderID = ofiles.OrderID
-            ORDER BY 
-                o.UploadDate DESC
+            FROM Orders o
+            INNER JOIN users u ON o.UserID = u.UserID
+            LEFT JOIN OrderFiles ofiles ON o.OrderID = ofiles.OrderID
+            ORDER BY o.UploadDate DESC
         `;
 
         const [rows] = await pool.query(query);
@@ -1578,7 +1552,6 @@ app.get('/Get-orders', async (req, res) => {
     }
 });
 
-module.exports = app;
 
 
 // Route for getting orders by user ID
