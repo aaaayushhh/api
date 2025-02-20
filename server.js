@@ -1225,35 +1225,45 @@ module.exports = app;
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const uploadPath = 'uploads/';
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true }); // Ensure the folder exists
+    destination: function (req, file, cb) {
+        const uploadDir = 'uploads/';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true }); // Ensure folder exists
         }
-        cb(null, uploadPath);
+        cb(null, uploadDir);
     },
-    filename: (req, file, cb) => {
+    filename: function (req, file, cb) {
         cb(null, `${Date.now()}-${file.originalname}`);
     },
 });
 
-const upload = multer({ storage });
+// Multer file filter: Allow only CSV files
+const fileFilter = (req, file, cb) => {
+    if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+        cb(null, true); // Accept file
+    } else {
+        cb(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'Only CSV files are allowed!'), false);
+    }
+};
 
-app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
+const upload = multer({
+    storage,
+    fileFilter
+}).any();  // Accept any field name
+
+// API Route
+app.post('/upload-csv', upload, async (req, res) => {
     try {
-        console.log(req.file); // Log uploaded file details
-        if (!req.file) {
+        console.log(req.files); // Log uploaded file details
+
+        if (!req.files || req.files.length === 0) {
             return res.status(400).json({ message: "No file uploaded." });
         }
 
-        if (!req.file.originalname.endsWith('.csv')) {
-            fs.unlink(req.file.path, (err) => {
-                if (err) console.error("Error deleting invalid file:", err);
-            });
-            return res.status(400).json({ message: "Invalid file type. Please upload a CSV file." });
-        }
+        // Process only the first CSV file (you can loop for multiple)
+        const file = req.files[0];
 
-        const filePath = req.file.path;
+        const filePath = file.path;
         const rows = [];
 
         // Read and parse the CSV file
@@ -1292,6 +1302,7 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
                         await pool.query(query, values);
                     }
 
+                    // Delete the uploaded file after processing
                     fs.unlink(filePath, (err) => {
                         if (err) console.error("Error deleting file:", err);
                     });
@@ -1305,6 +1316,10 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
             });
 
     } catch (error) {
+        if (error instanceof multer.MulterError) {
+            return res.status(400).json({ message: error.message });
+        }
+
         console.error('Server Error:', error);
         res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
@@ -1312,7 +1327,7 @@ app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
 
 
 // Endpoint to upload a single file
-app.post('/upload-single', upload.single('file'), async (req, res) => {
+app.post('/upload-single', upload, async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded.' });
     }
@@ -1344,8 +1359,25 @@ app.post('/upload-single', upload.single('file'), async (req, res) => {
     }
 });
 
+
+const stor = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, 'uploads/'); // Ensure this folder exists
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+
+// Allow all file types
+const uploa = multer({
+    storage: stor // Corrected from 'stor: storage' to 'storage: stor'
+});
+
+module.exports = uploa;
+
 // Route for uploading quotation files
-app.post('/enquiry-quotation-files/:orderId/:userId', upload.fields([{ name: 'quotationFile', maxCount: 1 }]), async (req, res) => {
+app.post('/enquiry-quotation-files/:orderId/:userId', uploa.fields([{ name: 'quotationFile', maxCount: 1 }]), async (req, res) => {
     const { orderId, userId } = req.params;
     const { DocumentType } = req.body;
 
