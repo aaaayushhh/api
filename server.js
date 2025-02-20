@@ -1039,21 +1039,6 @@ app.post('/contact-us-messages', async (req, res) => {
 
 
 // API endpoint to fetch all contact messages
-// Configure multer for file uploads
-const store = multer({
-    storage: multer.diskStorage({
-        destination: function (req, file, cb) {
-            cb(null, 'uploads/'); // Ensure this directory exists
-        },
-        filename: function (req, file, cb) {
-            cb(null, `${Date.now()}-${file.originalname}`);
-        },
-    }),
-}).fields([
-    { name: 'quotationFile', maxCount: 1 },
-    { name: 'proformaFile', maxCount: 1 },
-    { name: 'shippingDocuments', maxCount: 20 },
-]);
 
 // API route to get contact messages
 app.get('/Get-contact-us-messages', async (req, res) => {
@@ -1080,10 +1065,29 @@ app.get('/Get-contact-us-messages', async (req, res) => {
 });
 
 
-// API route to upload files
+// Configure multer for file uploads
+const store = multer({
+    storage: multer.diskStorage({
+        destination: function (req, file, cb) {
+            const uploadDir = 'uploads/';
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true }); // Ensure the folder exists
+            }
+            cb(null, uploadDir);
+        },
+        filename: function (req, file, cb) {
+            cb(null, `${Date.now()}-${file.originalname}`);
+        },
+    }),
+}).fields([
+    { name: 'quotationFile', maxCount: 1 },
+    { name: 'proformaFile', maxCount: 1 },
+    { name: 'shippingDocuments', maxCount: 20 },
+]);
+
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     const { orderId, userId } = req.params;
-    const { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber } = req.body;
+    let { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber } = req.body;
 
     if (!userId) {
         return res.status(400).json({ message: 'UserID is required' });
@@ -1101,9 +1105,16 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
         // Check if files were uploaded
         const files = req.files || {};
-        if (Object.keys(files).length === 0) {
+        if (!files || Object.keys(files).length === 0) {
             return res.status(400).json({ message: 'No files uploaded' });
         }
+
+        // Ensure default values for nullable fields
+        ShippingStatus = ShippingStatus || null;
+        BLNumber = BLNumber || null;
+        ShippingLines = ShippingLines || null;
+        ETA = ETA || null;
+        ProformaInvoiceNumber = ProformaInvoiceNumber || null;
 
         // Function to insert file records
         const insertFileRecord = async (documentType, file) => {
@@ -1115,7 +1126,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber)
                 VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
             `, [orderId, userId, documentType, fileName, filePath, fileType,
-                ShippingStatus || null, BLNumber || null, ShippingLines || null, ETA || null, ProformaInvoiceNumber || null]);
+                ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber]);
         };
 
         // Upload different types of files
@@ -1141,7 +1152,6 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 });
 
 module.exports = app;
-
 
 // API route to get files data for a specific user and order
 app.get('/get-files-data/:userId/:orderId', async (req, res) => {
@@ -1218,7 +1228,7 @@ const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const uploadPath = 'uploads/';
         if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath);
+            fs.mkdirSync(uploadPath, { recursive: true }); // Ensure the folder exists
         }
         cb(null, uploadPath);
     },
@@ -1229,70 +1239,77 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Multer setup for file uploads
 app.post('/upload-csv', upload.single('csvFile'), async (req, res) => {
-    console.log(req.file); // Should log file details if uploaded correctly
-    if (!req.file) {
-        return res.status(400).json({ message: "No file uploaded." });
-    }
+    try {
+        console.log(req.file); // Log uploaded file details
+        if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded." });
+        }
 
-    const filePath = req.file.path;
-    const rows = [];
+        if (!req.file.originalname.endsWith('.csv')) {
+            fs.unlink(req.file.path, (err) => {
+                if (err) console.error("Error deleting invalid file:", err);
+            });
+            return res.status(400).json({ message: "Invalid file type. Please upload a CSV file." });
+        }
 
-    // Read and parse the CSV file
-    fs.createReadStream(filePath)
-        .pipe(csvParser())
-        .on('data', (row) => {
-            rows.push(row);
-        })
-        .on('end', async () => {
-            try {
-                // Insert each row into the MySQL database
-                for (const row of rows) {
-                    const query = `
-                        INSERT INTO cornitos_master (
-                            CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
-                            UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
-                            LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS,
-                            UNIT_MEASUREMENT_TYPE
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    `;
-                    const values = [
-                        row['CATEGORY'] || null,
-                        row['CATEGORY_CODE'] || null,
-                        row['SUB_CATEGORY'] || null,
-                        row['BRAND'] || null,
-                        row['CODE'] || null,
-                        row['SKU_CODE'] || null,
-                        row['PRODUCT_DESCRIPTION'] || null,
-                        row['UNIT'] || null,
-                        row['UNIT_PER_CTN'] || null,
-                        row['WEIGHT_PER_PKT_GRAMS'] || null,
-                        row['SHELF_LIFE_MONTHS'] || null,
-                        row['NET_WEIGHT'] || null,
-                        row['LENGTH_INCHES'] || null,
-                        row['WIDTH_INCHES'] || null,
-                        row['HEIGHT_INCHES'] || null,
-                        row['VOL_PER_CTN'] || null,
-                        row['BARCODE'] || null,
-                        row['MRP'] || null,
-                        row['REMARKS'] || null,
-                        row['UNIT_MEASUREMENT_TYPE'] || null
-                    ];
+        const filePath = req.file.path;
+        const rows = [];
 
-                    await pool.query(query, values);
+        // Read and parse the CSV file
+        fs.createReadStream(filePath)
+            .pipe(csvParser())
+            .on('data', (row) => {
+                rows.push(row);
+            })
+            .on('end', async () => {
+                try {
+                    for (const row of rows) {
+                        if (!row['CATEGORY'] || !row['PRODUCT_DESCRIPTION']) {
+                            console.warn("Skipping invalid row:", row);
+                            continue; // Skip invalid rows
+                        }
+
+                        const query = `
+                            INSERT INTO cornitos_master (
+                                CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
+                                UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
+                                LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS,
+                                UNIT_MEASUREMENT_TYPE
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `;
+
+                        const values = [
+                            row['CATEGORY'] || null, row['CATEGORY_CODE'] || null, row['SUB_CATEGORY'] || null,
+                            row['BRAND'] || null, row['CODE'] || null, row['SKU_CODE'] || null,
+                            row['PRODUCT_DESCRIPTION'] || null, row['UNIT'] || null, row['UNIT_PER_CTN'] || null,
+                            row['WEIGHT_PER_PKT_GRAMS'] || null, row['SHELF_LIFE_MONTHS'] || null, row['NET_WEIGHT'] || null,
+                            row['LENGTH_INCHES'] || null, row['WIDTH_INCHES'] || null, row['HEIGHT_INCHES'] || null,
+                            row['VOL_PER_CTN'] || null, row['BARCODE'] || null, row['MRP'] || null,
+                            row['REMARKS'] || null, row['UNIT_MEASUREMENT_TYPE'] || null
+                        ];
+
+                        await pool.query(query, values);
+                    }
+
+                    fs.unlink(filePath, (err) => {
+                        if (err) console.error("Error deleting file:", err);
+                    });
+
+                    res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
+
+                } catch (error) {
+                    console.error('Error inserting data:', error);
+                    res.status(500).json({ message: 'Error inserting data', error: error.message });
                 }
+            });
 
-                // Cleanup: delete the uploaded file after processing
-                fs.unlinkSync(filePath);
-
-                res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
-            } catch (error) {
-                console.error('Error inserting data:', error);
-                res.status(500).json({ message: 'Error inserting data', error: error });
-            }
-        });
+    } catch (error) {
+        console.error('Server Error:', error);
+        res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    }
 });
+
 
 // Endpoint to upload a single file
 app.post('/upload-single', upload.single('file'), async (req, res) => {
