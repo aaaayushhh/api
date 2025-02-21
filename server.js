@@ -356,7 +356,7 @@ app.get("/Get-add-to-container/:userId", async (req, res) => {
                 cm.UNIT_PER_CTN,
                 cm.WEIGHT_PER_PKT_GRAMS,
                 tc.UserID,
-                u.username
+                u.FirstName
             FROM
                 to_container tc
             INNER JOIN
@@ -580,7 +580,7 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
                 [ProductID]
             );
             const [userResult] = await connection.execute(
-                'SELECT COUNT(*) AS count FROM login WHERE ID = ?',
+                'SELECT COUNT(*) AS count FROM users WHERE ID = ?',
                 [UserID]
             );
 
