@@ -560,40 +560,54 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
 const { v4: uuidv4 } = require('uuid');
 
 // Add to Container
-// Add to Container
 app.post('/add-to-container', authMiddleware, async (req, res) => {
-    console.log(req.body);
-
+    console.log(req.body); // Debugging: Log request body
     try {
         const { Quantity, ProductID, UserID, CartonQty } = req.body;
 
+        // Validate inputs
         if (!Quantity || !ProductID || !UserID || !CartonQty) {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
-        const checkProductQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE ID = ?`;
-        const checkUserQuery = `SELECT COUNT(*) AS count FROM users WHERE ID = ?`;
+        // Get a connection from the pool
+        const connection = await pool.getConnection();
 
-        const [[productResult]] = await pool.query(checkProductQuery, [ProductID]);
-        const [[userResult]] = await pool.query(checkUserQuery, [UserID]);
+        try {
+            // Check if ProductID and UserID exist
+            const [productResult] = await connection.execute(
+                'SELECT COUNT(*) AS count FROM cornitos_master WHERE ID = ?',
+                [ProductID]
+            );
+            const [userResult] = await connection.execute(
+                'SELECT COUNT(*) AS count FROM login WHERE ID = ?',
+                [UserID]
+            );
 
-        if (productResult.count === 0) {
-            return res.status(400).json({ message: 'Invalid ProductID' });
+            if (productResult[0].count === 0) {
+                return res.status(400).json({ message: 'Invalid ProductID' });
+            }
+            if (userResult[0].count === 0) {
+                return res.status(400).json({ message: 'Invalid UserID' });
+            }
+
+            // Insert into the database
+            await connection.execute(
+                'INSERT INTO to_container (Quantity, ProductID, UserID, CartonQty) VALUES (?, ?, ?, ?)',
+                [Quantity, ProductID, UserID, CartonQty]
+            );
+
+            res.status(201).json({ message: 'Added to container successfully!' });
+        } finally {
+            connection.release(); // Release the connection back to the pool
         }
-
-        if (userResult.count === 0) {
-            return res.status(400).json({ message: 'Invalid UserID' });
-        }
-
-        const insertQuery = `INSERT INTO to_container (Quantity, ProductID, UserID, CartonQty) VALUES (?, ?, ?, ?)`;
-        await pool.query(insertQuery, [Quantity, ProductID, UserID, CartonQty]);
-
-        res.status(201).json({ message: 'Added to container successfully!' });
     } catch (error) {
-        console.error('Error in /add-to-container:', error.message);
+        console.error('Error in /add-to-container:', error.message, error.stack);
         res.status(500).json({ message: 'Internal server error', error: error.message });
     }
 });
+
+module.exports = app;
 
 // Container Place Enquiry
 app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
