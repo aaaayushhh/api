@@ -881,7 +881,7 @@ app.post("/signup", async (req, res) => {
 });
 
 // Login route
-app.post("/loginuser", async (req, res) => {
+app.post("/loginuser", authMiddleware, async (req, res) => {
     const { EmailID, Password } = req.body;
 
     try {
