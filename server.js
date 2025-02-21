@@ -572,7 +572,7 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
         }
 
         const checkProductQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE ID = ?`;
-        const checkUserQuery = `SELECT COUNT(*) AS count FROM login WHERE ID = ?`;
+        const checkUserQuery = `SELECT COUNT(*) AS count FROM users WHERE ID = ?`;
 
         const [[productResult]] = await pool.query(checkProductQuery, [ProductID]);
         const [[userResult]] = await pool.query(checkUserQuery, [UserID]);
