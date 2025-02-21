@@ -580,7 +580,7 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
                 [ProductID]
             );
             const [userResult] = await connection.execute(
-                'SELECT COUNT(*) AS count FROM users WHERE ID = ?',
+                'SELECT COUNT(*) AS count FROM users WHERE UserID = ?',
                 [UserID]
             );
 
