@@ -958,19 +958,14 @@ app.get("/get-profile/:userId", async (req, res) => {
     const { userId } = req.params;
 
     try {
-        const query = `SELECT * FROM users WHERE userId = ?`; // Adjust query for MySQL
-        pool.execute(query, [userId], (err, results) => {
-            if (err) {
-                console.error("Error fetching user profile:", err);
-                return res.status(500).json({ error: "Internal Server Error" });
-            }
+        const query = `SELECT * FROM users WHERE userId = ?`;
+        const [results] = await pool.execute(query, [userId]); // ✅ Await the result
 
-            if (results.length > 0) {
-                res.status(200).json(results[0]); // Send the user data
-            } else {
-                res.status(404).json({ error: "User not found" });
-            }
-        });
+        if (results.length > 0) {
+            res.status(200).json(results[0]); // ✅ Return a single object
+        } else {
+            res.status(404).json({ error: "User not found" });
+        }
     } catch (error) {
         console.error("Error fetching user profile:", error);
         res.status(500).json({ error: "Internal Server Error" });
