@@ -362,7 +362,7 @@ app.get("/Get-add-to-container/:userId", async (req, res) => {
             INNER JOIN
                 cornitos_master cm ON tc.ProductID = cm.ID
             INNER JOIN
-                users u ON tc.UserID = u.ID
+                users u ON tc.UserID = u.UserID
             WHERE
                 tc.UserID = ?
         `, [userId]);
