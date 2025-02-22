@@ -1771,7 +1771,14 @@ app.get('/Get-admin-subcategory', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Data:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No subcategories found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching subcategory count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
