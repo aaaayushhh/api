@@ -490,13 +490,13 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 cpe.UserID,
-                lo.username
+                u.username
             FROM
                 container_place_enquiry cpe
             INNER JOIN
                 cornitos_master c_m ON cpe.ProductID = c_m.ID
             INNER JOIN
-                login lo ON cpe.UserID = lo.ID
+                users u ON cpe.UserID = u.UserID
             WHERE
                 cpe.UserID = ?
         `;
@@ -532,13 +532,13 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 cpe.UserID,
-                lo.username
+                u.username
             FROM
                 container_place_enquiry cpe
             INNER JOIN
                 cornitos_master c_m ON cpe.ProductID = c_m.ID
             INNER JOIN
-                login lo ON cpe.UserID = lo.ID
+                users u ON cpe.UserID = u.UserID
             WHERE
                 cpe.UserID = ?
         `;
