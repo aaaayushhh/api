@@ -1384,21 +1384,19 @@ const uploa = multer({
 module.exports = uploa;
 
 // Route for uploading quotation files
-app.post('/enquiry-quotation-files/:orderId/:userId', uploa.fields([{ name: 'quotationFile', maxCount: 1 }]), async (req, res) => {
+app.post('/enquiry-quotation-files/:orderId/:userId', uploa.any(), async (req, res) => {
     const { orderId, userId } = req.params;
     const { DocumentType } = req.body;
 
     console.log("Request Body:", req.body);
-    console.log("Received UserID:", userId);
-    console.log("Received OrderID:", orderId);
-    console.log("Received DocumentType:", DocumentType);
+    console.log("Received Files:", req.files); // Log received files
 
     if (!DocumentType) {
         return res.status(400).json({ message: 'DocumentType is required' });
     }
 
-    if (!req.files || !req.files.quotationFile) {
-        return res.status(400).json({ message: 'No quotation file uploaded' });
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ message: 'No file uploaded' });
     }
 
     try {
@@ -1420,9 +1418,10 @@ app.post('/enquiry-quotation-files/:orderId/:userId', uploa.fields([{ name: 'quo
             return res.status(404).json({ message: 'Invalid OrderID or Order does not belong to the user' });
         }
 
-        const file = req.files.quotationFile[0];
+        // Process each uploaded file
+        const file = req.files[0]; // Get the first file (or loop through req.files for multiple files)
         const fileName = file.originalname;
-        const filePath = file.path; // Use the correct path from the multer file object
+        const filePath = file.path;
         const fileType = file.mimetype;
 
         // Save file metadata to the database
