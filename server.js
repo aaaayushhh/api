@@ -980,19 +980,17 @@ app.get("/get-profile/:userId", async (req, res) => {
 // Get customers route
 app.get("/get-customers", async (req, res) => {
     try {
-        const query = `SELECT UserID, EmailID, FirstName, LastName, CompanyName FROM users`; // Adjust query for MySQL
-        pool.execute(query, (err, results) => {
-            if (err) {
-                console.error("Error fetching customer list:", err);
-                return res.status(500).json({ error: "Internal Server Error" });
-            }
-            res.status(200).json(results); // Return all users
-        });
+        const query = `SELECT UserID, EmailID, FirstName, LastName, CompanyName FROM users`;
+
+        const [results] = await pool.execute(query); // ✅ Correct usage
+
+        res.status(200).json(results); // Return all users
     } catch (error) {
         console.error("Error fetching customer list:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 // Admin login route
 app.post('/adminlogin', async (req, res) => {
