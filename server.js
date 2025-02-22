@@ -1711,7 +1711,14 @@ app.get('/Get-admin-customer', async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM users`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Customer Count:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No customers found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching customer count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1723,7 +1730,14 @@ app.get('/Get-admin-enquiry', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Enquiry Count:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No enquiries found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching enquiry count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1735,7 +1749,14 @@ app.get('/Get-admin-order', async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Order Count:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No orders found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching order count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1747,7 +1768,14 @@ app.get('/Get-admin-products', async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Product Count:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No products found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching product count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1759,7 +1787,14 @@ app.get('/Get-admin-category', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Data:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No categories found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching category count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
@@ -1790,7 +1825,14 @@ app.get('/Get-admin-brand', async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
         const [rows] = await pool.query(query);
-        res.status(200).json({ data: rows[0] }); // Directly send the count
+
+        console.log("Fetched Data:", rows); // Debugging
+
+        if (!rows || rows.length === 0) {
+            return res.status(404).json({ message: "No brands found" });
+        }
+
+        res.status(200).json({ data: rows[0] });
     } catch (err) {
         console.error('Error fetching brand count:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
