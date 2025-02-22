@@ -982,7 +982,7 @@ app.get("/get-customers", async (req, res) => {
     try {
         const query = `SELECT UserID, EmailID, FirstName, LastName, CompanyName FROM users`;
 
-        const [results] = await pool.execute(query); // ✅ Correct usage
+        const [results] = await pool.execute(query);
 
         res.status(200).json(results); // Return all users
     } catch (error) {
