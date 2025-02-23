@@ -1641,7 +1641,7 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
                 u.LastName,
                 u.CompanyName,
                 ofiles.ShippingStatus
-                JSON_ARRAYAGG(ofiles.ShippingStatus) AS ShippingStatus
+                GROUP_CONCAT(ofiles.ShippingStatus SEPARATOR ', ') AS ShippingStatus
             FROM 
                 Orders o
             INNER JOIN 
