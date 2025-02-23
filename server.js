@@ -659,14 +659,23 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
 // Delete all container data for a user
 app.delete('/delete-container-data', authMiddleware, async (req, res) => {
     try {
-        const { userId } = req.body; // Using UserID to identify the data to delete
+        // ✅ Fix: Get userId from query instead of body
+        const userId = req.query.userId;
+
+        console.log("DELETE API hit, received UserID:", userId);
 
         if (!userId) {
             return res.status(400).json({ message: "UserID is required" });
         }
 
         const query = `DELETE FROM to_container WHERE UserID = ?`;
-        await pool.query(query, [userId]);
+        const [result] = await pool.query(query, [userId]);
+
+        console.log("Delete result:", result);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: "No data found for the given UserID" });
+        }
 
         res.status(200).json({ message: "Container data deleted successfully" });
     } catch (err) {
@@ -674,6 +683,7 @@ app.delete('/delete-container-data', authMiddleware, async (req, res) => {
         res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 });
+
 
 // Delete a specific container item for a user
 app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (req, res) => {
