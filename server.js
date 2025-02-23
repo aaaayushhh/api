@@ -1640,7 +1640,7 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
                 u.FirstName,
                 u.LastName,
                 u.CompanyName,
-                GROUP_CONCAT(ofiles.ShippingStatus SEPARATOR ', ') AS ShippingStatus
+                GROUP_CONCAT(DISTINCT ofiles.ShippingStatus SEPARATOR ', ') AS ShippingStatus
             FROM 
                 Orders o
             INNER JOIN 
