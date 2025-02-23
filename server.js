@@ -1412,7 +1412,7 @@ app.post('/enquiry-quotation-files/:orderId/:userId',
             // Check if the order exists for the user
             const [orderCheck] = await pool.query(`
                 SELECT COUNT(*) AS count 
-                FROM Orders 
+                FROM container_place_enquiry 
                 WHERE OrderID = ? AND UserID = ?
             `, [orderId, userId]);
 
