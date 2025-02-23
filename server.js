@@ -189,7 +189,7 @@ const pool = mysql.createPool({
     password: "ayush@123!@#",
     database: "eximtrac",
     waitForConnections: true,
-    connectionLimit: 20,
+    connectionLimit: 10,
     queueLimit: 0
 });
 
