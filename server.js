@@ -1647,7 +1647,7 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
                 cornitos_master cm ON o.ProductID = cm.ID
             INNER JOIN 
                 users u ON o.UserID = u.UserID
-            LEFT JOIN 
+            INNER JOIN 
                 OrderFiles ofiles ON o.OrderID = ofiles.OrderID
             WHERE 
                 o.UserID = ?
