@@ -1146,9 +1146,11 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         }
 
         if (files.shippingDocuments) {
-            for (const file of files.shippingDocuments) {
-                await insertFileRecord('Shipping Documents', file);
-            }
+            await Promise.all(
+                files.shippingDocuments.map((file) =>
+                    insertFileRecord('Shipping Documents', file)
+                )
+            );
         }
 
         res.status(200).json({ message: 'Files uploaded successfully' });
