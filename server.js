@@ -1404,7 +1404,7 @@ app.post('/enquiry-quotation-files/:orderId/:userId',
 
         try {
             // Check if the user exists
-            const [userCheck] = await pool.query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
+            const [userCheck] = await pool.query('SELECT COUNT(*) AS count FROM users WHERE UserID = ?', [userId]);
             if (userCheck[0].count === 0) {
                 return res.status(404).json({ message: 'Invalid UserID' });
             }
