@@ -1382,11 +1382,11 @@ const uploa = multer({
     storage: stor
 });
 
-module.exports = upload;
+module.exports = uploa;
 
 // Route for uploading quotation files
 app.post('/enquiry-quotation-files/:orderId/:userId',
-    uploa.fields([{ name: 'quotationFile', maxCount: 1 }]),
+    uploa.fields([{ name: 'quotationFile', maxCount: 1 }]), // Ensure correct field name
     async (req, res) => {
         const { orderId, userId } = req.params;
         const { DocumentType } = req.body; // Ensure DocumentType is correctly received
@@ -1411,10 +1411,10 @@ app.post('/enquiry-quotation-files/:orderId/:userId',
 
             // Check if the order exists for the user
             const [orderCheck] = await pool.query(`
-            SELECT COUNT(*) AS count 
-            FROM Orders 
-            WHERE OrderID = ? AND UserID = ?
-        `, [orderId, userId]);
+                SELECT COUNT(*) AS count 
+                FROM Orders 
+                WHERE OrderID = ? AND UserID = ?
+            `, [orderId, userId]);
 
             if (orderCheck[0].count === 0) {
                 console.error(`Invalid OrderID: ${orderId} for UserID: ${userId}`);
@@ -1429,9 +1429,9 @@ app.post('/enquiry-quotation-files/:orderId/:userId',
 
             // Save file metadata to the database
             await pool.query(`
-            INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
+                INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
 
             res.status(200).json({
                 message: 'File uploaded and metadata saved to database successfully!',
