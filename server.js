@@ -1367,6 +1367,7 @@ app.post('/upload-single', upload, async (req, res) => {
 });
 
 
+// Storage configuration
 const stor = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, 'uploads/'); // Ensure this folder exists
@@ -1376,69 +1377,72 @@ const stor = multer.diskStorage({
     }
 });
 
-// Allow all file types
+// Multer instance with field-based file handling
 const uploa = multer({
-    storage: stor // Corrected from 'stor: storage' to 'storage: stor'
+    storage: stor
 });
 
-module.exports = uploa;
+module.exports = upload;
 
 // Route for uploading quotation files
-app.post('/enquiry-quotation-files/:orderId/:userId', uploa.any(), async (req, res) => {
-    const { orderId, userId } = req.params;
-    const { DocumentType } = req.body;
+app.post('/enquiry-quotation-files/:orderId/:userId',
+    uploa.fields([{ name: 'quotationFile', maxCount: 1 }]),
+    async (req, res) => {
+        const { orderId, userId } = req.params;
+        const { DocumentType } = req.body; // Ensure DocumentType is correctly received
 
-    console.log("Request Body:", req.body);
-    console.log("Received Files:", req.files); // Log received files
+        console.log("Request Body:", req.body);
+        console.log("Received Files:", req.files); // Log received files
 
-    if (!DocumentType) {
-        return res.status(400).json({ message: 'DocumentType is required' });
-    }
-
-    if (!req.files || req.files.length === 0) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    try {
-        // Check if the user exists
-        const [userCheck] = await pool.query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
-        if (userCheck[0].count === 0) {
-            return res.status(404).json({ message: 'Invalid UserID' });
+        if (!DocumentType) {
+            return res.status(400).json({ message: 'DocumentType is required' });
         }
 
-        // Check if the order exists for the user
-        const [orderCheck] = await pool.query(`
+        if (!req.files || !req.files.quotationFile) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
+
+        try {
+            // Check if the user exists
+            const [userCheck] = await pool.query('SELECT COUNT(*) AS count FROM Users WHERE UserID = ?', [userId]);
+            if (userCheck[0].count === 0) {
+                return res.status(404).json({ message: 'Invalid UserID' });
+            }
+
+            // Check if the order exists for the user
+            const [orderCheck] = await pool.query(`
             SELECT COUNT(*) AS count 
             FROM Orders 
             WHERE OrderID = ? AND UserID = ?
         `, [orderId, userId]);
 
-        if (orderCheck[0].count === 0) {
-            console.error(`Invalid OrderID: ${orderId} for UserID: ${userId}`);
-            return res.status(404).json({ message: 'Invalid OrderID or Order does not belong to the user' });
-        }
+            if (orderCheck[0].count === 0) {
+                console.error(`Invalid OrderID: ${orderId} for UserID: ${userId}`);
+                return res.status(404).json({ message: 'Invalid OrderID or Order does not belong to the user' });
+            }
 
-        // Process each uploaded file
-        const file = req.files[0]; // Get the first file (or loop through req.files for multiple files)
-        const fileName = file.originalname;
-        const filePath = file.path;
-        const fileType = file.mimetype;
+            // Process the uploaded file
+            const file = req.files.quotationFile[0]; // Get the file
+            const fileName = file.originalname;
+            const filePath = file.path;
+            const fileType = file.mimetype;
 
-        // Save file metadata to the database
-        await pool.query(`
+            // Save file metadata to the database
+            await pool.query(`
             INSERT INTO EnquiryQuotationFiles (OrderID, UserID, DocumentType, ReferenceID, FileName, FilePath, FileType, UploadDate)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `, [orderId, userId, DocumentType, null, fileName, filePath, fileType, new Date()]);
 
-        res.status(200).json({
-            message: 'File uploaded and metadata saved to database successfully!',
-            fileDetails: { fileName, filePath, fileType }
-        });
-    } catch (error) {
-        console.error('Error saving file metadata to database:', error);
-        res.status(500).json({ message: 'Failed to save file metadata to database', error: error.message });
-    }
-});
+            res.status(200).json({
+                message: 'File uploaded and metadata saved to database successfully!',
+                fileDetails: { fileName, filePath, fileType }
+            });
+        } catch (error) {
+            console.error('Error saving file metadata to database:', error);
+            res.status(500).json({ message: 'Failed to save file metadata to database', error: error.message });
+        }
+    });
+
 
 
 // Route for user-specific file retrieval
