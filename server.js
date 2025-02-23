@@ -1641,19 +1641,22 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
                 u.LastName,
                 u.CompanyName,
                 ofiles.ShippingStatus
+                JSON_ARRAYAGG(ofiles.ShippingStatus) AS ShippingStatus
             FROM 
                 Orders o
             INNER JOIN 
                 cornitos_master cm ON o.ProductID = cm.ID
             INNER JOIN 
                 users u ON o.UserID = u.UserID
-            INNER JOIN 
+            LEFT JOIN 
                 OrderFiles ofiles ON o.OrderID = ofiles.OrderID
             WHERE 
                 o.UserID = ?
+            GROUP BY 
+                o.OrderID
             ORDER BY 
                 o.UploadDate DESC
-        `;
+            `;
 
         const [rows] = await pool.query(query, [userId]);
         res.status(200).json({ msg: 'Data Fetched Successfully', data: rows });
