@@ -145,6 +145,7 @@ const bodyParser = require('body-parser');
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const authMiddleware = require('./auth');
+const nodemailer = require("nodemailer");
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -1861,6 +1862,41 @@ app.get('/download-catalogue', (req, res) => {
             res.status(500).send('Error downloading file.');
         }
     });
+});
+
+module.exports = app;
+
+
+app.post("/send-enquiry-email", async (req, res) => {
+    const { email } = req.body;  // Email ID of the user
+
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Configure your email transporter (use your SMTP credentials)
+    let transporter = nodemailer.createTransport({
+        service: "gmail",  // You can use your email provider (Gmail, Outlook, etc.)
+        auth: {
+            user: "ayushsshah04@gmail.com",  // Replace with your email
+            pass: "ayusamdeep",  // Replace with your email app password
+        },
+    });
+
+    let mailOptions = {
+        from: "ayushsshha04@gmail.com",
+        to: email,
+        subject: "Order Enquiry Placed",
+        text: `Dear Customer, \n\nYour order enquiry has been placed successfully.\n\nBest Regards,\nEximtrac`,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        res.json({ message: "Email sent successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Failed to send email" });
+    }
 });
 
 module.exports = app;
