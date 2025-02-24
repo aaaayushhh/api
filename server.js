@@ -928,7 +928,10 @@ app.post("/loginuser", async (req, res) => {
             expiresIn: '1h' // Token expiration time
         });
 
-        res.json({ message: "Login successful", user: { UserID: user.UserID }, token: token });
+        res.json({
+            message: "Login successful", user:
+                { UserID: user.UserID, EmailID: user.EmailID }, token: token
+        });
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: "Server error" });
