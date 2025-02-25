@@ -1884,7 +1884,7 @@ app.post("/send-enquiry-email", async (req, res) => {
         service: "gmail",  // You can use your email provider (Gmail, Outlook, etc.)
         auth: {
             user: "ayushsshah04@gmail.com",  // Replace with your email
-            pass: "ayusamdeep",  // Replace with your email app password
+            pass: "wlfy yekg dvwq aqcq",  // Replace with your email app password
         },
     });
 
