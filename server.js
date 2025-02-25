@@ -1889,7 +1889,7 @@ app.post("/send-enquiry-email", async (req, res) => {
     });
 
     let mailOptions = {
-        from: "ayushsshha04@gmail.com",
+        from: "ayushsshah04@gmail.com",
         to: email,
         subject: "Order Enquiry Placed",
         text: `Dear Customer, \n\nYour order enquiry has been placed successfully. We will get back to you shortly.\n\nBest Regards,\nEximtrac`,
