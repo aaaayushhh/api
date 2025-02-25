@@ -1896,10 +1896,11 @@ app.post("/send-enquiry-email", async (req, res) => {
     };
 
     try {
-        await transporter.sendMail(mailOptions);
+        let info = await transporter.sendMail(mailOptions);
+        console.log("Email sent: ", info.response);
         res.json({ message: "Email sent successfully" });
     } catch (error) {
-        console.error(error);
+        console.error("Email Error:", error.response || error);
         res.status(500).json({ message: "Failed to send email" });
     }
 });
