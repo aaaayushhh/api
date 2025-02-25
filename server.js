@@ -1887,7 +1887,7 @@ app.post("/send-enquiry-email", async (req, res) => {
         from: "ayushsshha04@gmail.com",
         to: email,
         subject: "Order Enquiry Placed",
-        text: `Dear Customer, \n\nYour order enquiry has been placed successfully.\n\nBest Regards,\nEximtrac`,
+        text: `Dear Customer, \n\nYour order enquiry has been placed successfully. We will get back to you shortly.\n\nBest Regards,\nEximtrac`,
     };
 
     try {
