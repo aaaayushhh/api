@@ -133,7 +133,7 @@
 
 
 
-const express = require("express");
+const express = require('express');
 const mysql = require('mysql2/promise'); // Use promise-based mysql2
 const app = express();
 const cors = require('cors');
@@ -149,7 +149,11 @@ const nodemailer = require("nodemailer");
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors({ origin: '*' }));
+app.use(cors({
+    origin: "*",
+    methods: "GET,POST,PUT,DELETE",
+    allowedHeaders: "Content-Type,Authorization"
+}));
 
 // Middleware
 app.use(bodyParser.json());
