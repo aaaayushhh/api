@@ -159,7 +159,7 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware
 app.use(bodyParser.json());
 
-const JWT_SECRET = "1234"; // Change in production
+const JWT_SECRET = process.env.JWT_SECRET; // Change in production
 
 // Configuration for MSSQL
 // const config = {
@@ -1956,7 +1956,7 @@ app.post("/reset-password", async (req, res) => {
     const { token, password } = req.body;
 
     try {
-        const decoded = jwt.verify(token, process.env.SECRET_KEY);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const email = decoded.email;
 
         const [rows] = await pool.query(
