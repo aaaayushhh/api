@@ -1279,9 +1279,8 @@ app.post('/upload-csv', upload, async (req, res) => {
             return res.status(400).json({ message: "No file uploaded." });
         }
 
-        // Process only the first CSV file (you can loop for multiple)
+        // Process only the first CSV file
         const file = req.files[0];
-
         const filePath = file.path;
         const rows = [];
 
@@ -1296,7 +1295,7 @@ app.post('/upload-csv', upload, async (req, res) => {
                     for (const row of rows) {
                         if (!row['CATEGORY'] || !row['PRODUCT_DESCRIPTION']) {
                             console.warn("Skipping invalid row:", row);
-                            continue; // Skip invalid rows
+                            continue;
                         }
 
                         const query = `
@@ -1326,12 +1325,17 @@ app.post('/upload-csv', upload, async (req, res) => {
                         if (err) console.error("Error deleting file:", err);
                     });
 
-                    res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
+                    console.log("✅ CSV data successfully uploaded and saved!");
+                    return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
 
                 } catch (error) {
                     console.error('Error inserting data:', error);
-                    res.status(500).json({ message: 'Error inserting data', error: error.message });
+                    return res.status(500).json({ message: 'Error inserting data', error: error.message });
                 }
+            })
+            .on('error', (error) => {
+                console.error("Error reading CSV file:", error);
+                return res.status(500).json({ message: "Error processing file", error: error.message });
             });
 
     } catch (error) {
@@ -1340,7 +1344,7 @@ app.post('/upload-csv', upload, async (req, res) => {
         }
 
         console.error('Server Error:', error);
-        res.status(500).json({ message: 'Internal Server Error', error: error.message });
+        return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 });
 
