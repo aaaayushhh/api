@@ -1914,71 +1914,68 @@ module.exports = app;
 
 
 // **1. Forgot Password - Generate Token & Send Email**
-app.post("/forgot-password", (req, res) => {
+app.post("/forgot-password", async (req, res) => {
     const { email } = req.body;
 
-    db.query("SELECT * FROM users WHERE email = ?", [EmailID], (err, result) => {
-        if (err) return res.send("Database error");
-        if (result.length === 0) return res.send("User not found");
+    try {
+        const [rows] = await pool.query("SELECT * FROM users WHERE EmailID = ?", [email]);
+        if (rows.length === 0) return res.status(404).send("User not found");
 
-        const resetToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: "1h" });
+        const resetToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
         const expiry = new Date(Date.now() + 3600000); // 1 hour expiry
 
-        db.query(
-            "UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?",
-            [resetToken, expiry, EmailID],
-            err => {
-                if (err) return res.send("Error updating token");
-
-                // **Send Reset Email**
-                const transporter = nodemailer.createTransport({
-                    service: "gmail",
-                    auth: { user: "ayushsshah04@gmail.com", pass: "wlfy yekg dvwq aqcq" },
-                });
-
-                const mailOptions = {
-                    from: "ayushsshah04@gmail.com",
-                    to: email,
-                    subject: "Reset Password",
-                    html: `<p>Click <a href="http://localhost:3001/reset-password/${resetToken}">here</a> to reset your password.</p>`,
-                };
-
-                transporter.sendMail(mailOptions, err => {
-                    if (err) return res.send("Error sending email");
-                    res.send("Reset link sent to email");
-                });
-            }
+        await pool.query(
+            "UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE EmailID = ?",
+            [resetToken, expiry, email]
         );
-    });
+
+        // **Send Reset Email**
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: { user: "ayushsshah04@gmail.com", pass: "wlfy yekg dvwq aqcq" },
+        });
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: "Reset Password",
+            html: `<p>Click <a href="http://localhost:3001/reset-password/${resetToken}">here</a> to reset your password.</p>`,
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.send("Reset link sent to email");
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).send("Internal Server Error");
+    }
 });
 
 // **2. Reset Password - Validate Token & Update Password**
-app.post("/reset-password", (req, res) => {
+app.post("/reset-password", async (req, res) => {
     const { token, password } = req.body;
 
     try {
-        const decoded = jwt.verify(token, JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.SECRET_KEY);
         const email = decoded.email;
 
-        db.query(
-            "SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expiry > NOW()",
-            [EmailID, token],
-            (err, result) => {
-                if (err) return res.send("Database error");
-                if (result.length === 0) return res.send("Invalid or expired token");
-
-                db.query(
-                    "UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE email = ?",
-                    [Password, EmailID],
-                    err => {
-                        if (err) return res.send("Error updating password");
-                        res.send("Password reset successful");
-                    }
-                );
-            }
+        const [rows] = await pool.query(
+            "SELECT * FROM users WHERE EmailID = ? AND reset_token = ? AND reset_token_expiry > NOW()",
+            [email, token]
         );
-    } catch (err) {
-        res.send("Invalid token");
+
+        if (rows.length === 0) return res.status(400).send("Invalid or expired token");
+
+        await pool.query(
+            "UPDATE users SET Password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE EmailID = ?",
+            [password, email]
+        );
+
+        res.send("Password reset successful");
+
+    } catch (error) {
+        console.error("Error:", error);
+        res.status(500).send("Invalid token or Internal Server Error");
     }
 });
 
