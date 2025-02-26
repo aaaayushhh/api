@@ -628,49 +628,37 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
     for (const item of data) {
         const { ProductID, UserID, CartonQty } = item;
         if (!ProductID || !UserID || CartonQty === undefined) {
-            return res.status(400).json({ message: 'All fields (ProductID, UserID, CartonQty) are required for each item' });
+            return res.status(400).json({ message: 'All fields (ProductID, UserID, CartonQty) are required' });
         }
     }
 
     try {
-        // Generate a unique OrderID
         const orderId = uuidv4();
-
-        // Get the current timestamp for UploadDate
         const uploadDate = new Date();
 
-        // Prepare the SQL query for inserting multiple rows
         const query = `
             INSERT INTO container_place_enquiry (ProductID, UserID, CartonQty, OrderID, UploadDate)
             VALUES ?
         `;
 
-        // Map the data to the format required by the query
-        const values = data.map(item => [
-            item.ProductID,
-            item.UserID,
-            item.CartonQty,
-            orderId,
-            uploadDate
-        ]);
+        const values = data.map(item => [item.ProductID, item.UserID, item.CartonQty, orderId, uploadDate]);
 
-        // Execute the query
         await pool.query(query, [values]);
 
-        res.status(201).json({ message: 'Enquiry placed successfully!', orderId: orderId });
+        console.log("✅ Enquiry placed successfully:", orderId);
+        res.status(201).json({ message: "Enquiry placed successfully!", orderId });
     } catch (error) {
-        console.error('Error in /container-place-enquiry:', error.message);
-        res.status(500).json({ message: 'Internal server error', error: error.message });
+        console.error("❌ Error in /container-place-enquiry:", error.message);
+        res.status(500).json({ message: "Internal server error", error: error.message });
     }
 });
 
 // Delete all container data for a user
 app.delete('/delete-container-data', authMiddleware, async (req, res) => {
     try {
-        // ✅ Fix: Get userId from query instead of body
-        const userId = req.query.userId;
+        const userId = req.query.userId; // ✅ Fix: Get userId from query params
 
-        console.log("DELETE API hit, received UserID:", userId);
+        console.log("🛑 DELETE API hit, UserID:", userId);
 
         if (!userId) {
             return res.status(400).json({ message: "UserID is required" });
@@ -679,7 +667,7 @@ app.delete('/delete-container-data', authMiddleware, async (req, res) => {
         const query = `DELETE FROM to_container WHERE UserID = ?`;
         const [result] = await pool.query(query, [userId]);
 
-        console.log("Delete result:", result);
+        console.log("🗑️ Delete result:", result);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({ message: "No data found for the given UserID" });
@@ -687,10 +675,11 @@ app.delete('/delete-container-data', authMiddleware, async (req, res) => {
 
         res.status(200).json({ message: "Container data deleted successfully" });
     } catch (err) {
-        console.error("Error deleting data:", err);
+        console.error("❌ Error deleting data:", err);
         res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 });
+
 
 
 // Delete a specific container item for a user
@@ -1902,8 +1891,8 @@ app.post("/send-enquiry-email", async (req, res) => {
         console.log("Email sent: ", info.response);
         res.json({ message: "Email sent successfully" });
     } catch (error) {
-        console.error("Email Error:", error.response || error);
-        res.status(500).json({ message: "Failed to send email" });
+        console.error("Email Error:", error);
+        res.status(500).json({ message: "Failed to send email", error: error.toString() });
     }
 });
 
