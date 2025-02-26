@@ -159,6 +159,8 @@ app.use(express.urlencoded({ extended: true }));
 // Middleware
 app.use(bodyParser.json());
 
+const JWT_SECRET = "1234"; // Change in production
+
 // Configuration for MSSQL
 // const config = {
 //     server: process.env.SERVER,
@@ -1906,6 +1908,82 @@ app.post("/send-enquiry-email", async (req, res) => {
 });
 
 module.exports = app;
+
+
+
+
+
+// **1. Forgot Password - Generate Token & Send Email**
+app.post("/forgot-password", (req, res) => {
+    const { email } = req.body;
+
+    db.query("SELECT * FROM users WHERE email = ?", [EmailID], (err, result) => {
+        if (err) return res.send("Database error");
+        if (result.length === 0) return res.send("User not found");
+
+        const resetToken = jwt.sign({ email }, JWT_SECRET, { expiresIn: "1h" });
+        const expiry = new Date(Date.now() + 3600000); // 1 hour expiry
+
+        db.query(
+            "UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?",
+            [resetToken, expiry, EmailID],
+            err => {
+                if (err) return res.send("Error updating token");
+
+                // **Send Reset Email**
+                const transporter = nodemailer.createTransport({
+                    service: "gmail",
+                    auth: { user: "ayushsshah04@gmail.com", pass: "wlfy yekg dvwq aqcq" },
+                });
+
+                const mailOptions = {
+                    from: "ayushsshah04@gmail.com",
+                    to: email,
+                    subject: "Reset Password",
+                    html: `<p>Click <a href="http://localhost:3001/reset-password/${resetToken}">here</a> to reset your password.</p>`,
+                };
+
+                transporter.sendMail(mailOptions, err => {
+                    if (err) return res.send("Error sending email");
+                    res.send("Reset link sent to email");
+                });
+            }
+        );
+    });
+});
+
+// **2. Reset Password - Validate Token & Update Password**
+app.post("/reset-password", (req, res) => {
+    const { token, password } = req.body;
+
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const email = decoded.email;
+
+        db.query(
+            "SELECT * FROM users WHERE email = ? AND reset_token = ? AND reset_token_expiry > NOW()",
+            [EmailID, token],
+            (err, result) => {
+                if (err) return res.send("Database error");
+                if (result.length === 0) return res.send("Invalid or expired token");
+
+                db.query(
+                    "UPDATE users SET password = ?, reset_token = NULL, reset_token_expiry = NULL WHERE email = ?",
+                    [Password, EmailID],
+                    err => {
+                        if (err) return res.send("Error updating password");
+                        res.send("Password reset successful");
+                    }
+                );
+            }
+        );
+    } catch (err) {
+        res.send("Invalid token");
+    }
+});
+
+module.exports = app;
+
 
 
 
