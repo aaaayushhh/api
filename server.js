@@ -1271,6 +1271,7 @@ const upload = multer({
 }).any();  // Accept any field name
 
 // API Route
+// API Route
 app.post('/upload-csv', upload, async (req, res) => {
     try {
         console.log(req.files); // Log uploaded file details
@@ -1293,12 +1294,25 @@ app.post('/upload-csv', upload, async (req, res) => {
             .on('end', async () => {
                 try {
                     for (const row of rows) {
-                        if (!row['CATEGORY'] || !row['PRODUCT_DESCRIPTION']) {
+                        if (!row['CATEGORY'] || !row['PRODUCT_DESCRIPTION'] || !row['SKU_CODE']) {
                             console.warn("Skipping invalid row:", row);
                             continue;
                         }
 
-                        const query = `
+                        // Check if SKU_CODE already exists
+                        const checkQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`;
+                        const [existing] = await pool.query(checkQuery, [row['SKU_CODE']]);
+
+                        if (existing[0].count > 0) {
+                            console.warn(`SKU_CODE ${row['SKU_CODE']} already exists. Skipping insertion.`);
+                            return res.status(400).json({
+                                message: `Data already exists for SKU_CODE: ${row['SKU_CODE']}.`,
+                                skuCode: row['SKU_CODE']
+                            });
+                        }
+
+                        // If SKU_CODE does not exist, insert the new record
+                        const insertQuery = `
                             INSERT INTO cornitos_master (
                                 CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
                                 UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
@@ -1317,7 +1331,7 @@ app.post('/upload-csv', upload, async (req, res) => {
                             row['REMARKS'] || null, row['UNIT_MEASUREMENT_TYPE'] || null
                         ];
 
-                        await pool.query(query, values);
+                        await pool.query(insertQuery, values);
                     }
 
                     // Delete the uploaded file after processing
