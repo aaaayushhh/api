@@ -783,6 +783,33 @@ app.put("/update-brand", async (req, res) => {
 });
 
 
+// Update a brand
+app.put("/update-product", async (req, res) => {
+    const { oldName, newName } = req.body;
+
+    if (!oldName || !newName) {
+        return res.status(400).json({ message: "Both oldName and newName are required." });
+    }
+
+    try {
+        // Run the SQL UPDATE query
+        const [result] = await pool.query(
+            `UPDATE cornitos_master SET PRODUCT_DESCRIPTION = ? WHERE PRODUCT_DESCRIPTION = ?`,
+            [newName, oldName]
+        );
+
+        // Check if any row was updated
+        if (result.affectedRows > 0) {
+            return res.json({ message: "Product updated successfully" });
+        } else {
+            return res.status(404).json({ message: "Product not found" });
+        }
+    } catch (err) {
+        console.error('Error updating Product:', err);
+        return res.status(500).json({ message: "Error updating Product", error: err.message });
+    }
+});
+
 
 // app.post('/login', async (req, res) => {
 //     const { username, password } = req.body;
