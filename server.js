@@ -970,7 +970,7 @@ app.get('/protected', authMiddleware, (req, res) => {
 // Profile update route
 app.put("/profile", authMiddleware, async (req, res) => {
     const { userId } = req.body; // Get userId from token after middleware
-    const { FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, AlternateEmail, FinalDestination } = req.body;
+    const { FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, AlternateEmailID, FinalDestination } = req.body;
 
     try {
         const query = `
