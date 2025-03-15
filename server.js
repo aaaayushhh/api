@@ -970,18 +970,18 @@ app.get('/protected', authMiddleware, (req, res) => {
 // Profile update route
 app.put("/profile", authMiddleware, async (req, res) => {
     const { userId } = req.body; // Get userId from token after middleware
-    const { FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone } = req.body;
+    const { FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, AlternateEmail, FinalDestination } = req.body;
 
     try {
         const query = `
             UPDATE users 
             SET FirstName = ?, LastName = ?, PhoneNumber = ?, CompanyName = ?, 
                 CompanyAddress = ?, City = ?, State = ?, Country = ?, ZipCode = ?, 
-                DischargePort = ?, AlternatePhone = ? 
+                DischargePort = ?, AlternatePhone = ?, AlternateEmail = ?,FinalDestination = ? 
             WHERE UserID = ?
         `;
 
-        await pool.query(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, userId]); // Use await here
+        await pool.query(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, AlternateEmail, FinalDestination, userId]); // Use await here
 
         res.json({ message: "Profile updated successfully" });
     } catch (err) {
