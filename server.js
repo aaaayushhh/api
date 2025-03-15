@@ -977,11 +977,11 @@ app.put("/profile", authMiddleware, async (req, res) => {
             UPDATE users 
             SET FirstName = ?, LastName = ?, PhoneNumber = ?, CompanyName = ?, 
                 CompanyAddress = ?, City = ?, State = ?, Country = ?, ZipCode = ?, 
-                DischargePort = ?, AlternatePhone = ?, AlternateEmail = ?,FinalDestination = ? 
+                DischargePort = ?, AlternatePhone = ?, AlternateEmailID = ?,FinalDestination = ? 
             WHERE UserID = ?
         `;
 
-        await pool.query(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, AlternateEmail, FinalDestination, userId]); // Use await here
+        await pool.query(query, [FirstName, LastName, PhoneNumber, CompanyName, CompanyAddress, City, State, Country, ZipCode, DischargePort, AlternatePhone, AlternateEmailID, FinalDestination, userId]); // Use await here
 
         res.json({ message: "Profile updated successfully" });
     } catch (err) {
