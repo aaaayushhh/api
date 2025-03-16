@@ -2035,7 +2035,7 @@ app.post("/update-enquiry", async (req, res) => {
                 UPDATE container_place_enquiry SET 
                 TotalCases = ?, 
                 TotalQty = ?, 
-                RatePerUnitIUSD = ?, 
+                RatePerUnitUSD = ?, 
                 RatePerCaseUSD = ?, 
                 TotalRateInUSDFobIndia = ?, 
                 TotalNetWeight = ?, 
