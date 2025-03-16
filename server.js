@@ -2018,6 +2018,52 @@ module.exports = app;
 
 
 
+// Update Enquiry Data API
+app.post("/update-enquiry", (req, res) => {
+    const updatedRows = req.body.data;
+
+    if (!updatedRows || updatedRows.length === 0) {
+        return res.status(400).json({ message: "No data to update" });
+    }
+
+    let queries = "";
+    updatedRows.forEach((row) => {
+        queries += mysql.format(
+            `UPDATE container_place_enquiry SET 
+          TotalCases = ?, 
+          TotalQty = ?, 
+          RatePerUnitIUSD = ?, 
+          RatePerCaseUSD = ?, 
+          TotalRateInUSDFobIndia = ?, 
+          TotalNetWeight = ?, 
+          TotalGrossWeight = ?, 
+          TotalVolume = ?
+        WHERE CPE_ID = ?; `,
+            [
+                row.TotalCases || null,
+                row.TotalQty || null,
+                row.RatePerUnitUSD || null,
+                row.RatePerCaseUSD || null,
+                row.TotalRateInUSDFobIndia || null,
+                row.TotalNetWeight || null,
+                row.TotalGrossWeight || null,
+                row.TotalVolume || null,
+                row.CPE_ID,
+            ]
+        );
+    });
+
+    db.query(queries, (err, result) => {
+        if (err) {
+            console.error("Error updating data:", err);
+            return res.status(500).json({ message: "Database update failed" });
+        }
+        res.json({ message: "Data updated successfully" });
+    });
+});
+
+
+
 // Set the server to listen on PORT
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
