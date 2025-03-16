@@ -1609,7 +1609,7 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
             // Verify the data before inserting
             const selectQuery = `
-                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate
+                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalCases, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, TotalGrossWeight, TotalVolume
                 FROM container_place_enquiry
                 WHERE CPE_ID = ?
             `;
@@ -1623,8 +1623,8 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
             // Insert the data into the Orders table using CPE_ID
             const insertQuery = `
-                INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate)
-                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate
+                INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalCases, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, TotalGrossWeight, TotalVolume)
+                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalCases, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, TotalGrossWeight, TotalVolume
                 FROM container_place_enquiry
                 WHERE CPE_ID = ?
             `;
