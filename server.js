@@ -497,6 +497,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
                 cpe.TotalNetWeight,
                 cpe.TotalGrossWeight,
                 cpe.TotalVolume,
+                cpe.UserStatus,
                 c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
                 c_m.CATEGORY,
@@ -547,6 +548,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
                 cpe.TotalNetWeight,
                 cpe.TotalGrossWeight,
                 cpe.TotalVolume,
+                cpe.UserStatus,
                 c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
                 c_m.CATEGORY,
@@ -2080,6 +2082,27 @@ app.post("/update-enquiry", async (req, res) => {
     } catch (err) {
         console.error("Error updating data:", err);
         res.status(500).json({ message: "Database update failed" });
+    }
+});
+
+
+
+app.post("/update-enquiry-user-side", async (req, res) => {
+    const { cpeId, status } = req.body;
+
+    if (!cpeId || !status) {
+        return res.status(400).json({ message: "Missing CPE_ID or status" });
+    }
+
+    try {
+        await pool.execute(
+            "UPDATE container_place_enquiry SET UserStatus = ? WHERE CPE_ID = ?",
+            [status, cpeId]
+        );
+        res.json({ message: "Status updated successfully" });
+    } catch (error) {
+        console.error("Error updating status:", error);
+        res.status(500).json({ message: "Server error" });
     }
 });
 
