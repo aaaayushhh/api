@@ -2019,7 +2019,7 @@ module.exports = app;
 
 
 // Update Enquiry Data API
-app.post("/update-enquiry", (req, res) => {
+app.post("/update-enquiry", async (req, res) => {
     const updatedRows = req.body.data;
 
     if (!updatedRows || updatedRows.length === 0) {
@@ -2053,13 +2053,13 @@ app.post("/update-enquiry", (req, res) => {
         );
     });
 
-    pool.query(queries, (err, result) => {
-        if (err) {
-            console.error("Error updating data:", err);
-            return res.status(500).json({ message: "Database update failed" });
-        }
+    try {
+        const [result] = await pool.query(queries); // Use await instead of callback
         res.json({ message: "Data updated successfully" });
-    });
+    } catch (err) {
+        console.error("Error updating data:", err);
+        res.status(500).json({ message: "Database update failed" });
+    }
 });
 
 
