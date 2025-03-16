@@ -2053,7 +2053,7 @@ app.post("/update-enquiry", (req, res) => {
         );
     });
 
-    db.query(queries, (err, result) => {
+    pool.query(queries, (err, result) => {
         if (err) {
             console.error("Error updating data:", err);
             return res.status(500).json({ message: "Database update failed" });
