@@ -2026,20 +2026,25 @@ app.post("/update-enquiry", async (req, res) => {
         return res.status(400).json({ message: "No data to update" });
     }
 
-    let queries = "";
-    updatedRows.forEach((row) => {
-        queries += mysql.format(
-            `UPDATE container_place_enquiry SET 
-          TotalCases = ?, 
-          TotalQty = ?, 
-          RatePerUnitIUSD = ?, 
-          RatePerCaseUSD = ?, 
-          TotalRateInUSDFobIndia = ?, 
-          TotalNetWeight = ?, 
-          TotalGrossWeight = ?, 
-          TotalVolume = ?
-        WHERE CPE_ID = ?; `,
-            [
+    try {
+        // Use a single database connection for all updates
+        const connection = await pool.getConnection();
+
+        for (const row of updatedRows) {
+            const query = `
+                UPDATE container_place_enquiry SET 
+                TotalCases = ?, 
+                TotalQty = ?, 
+                RatePerUnitIUSD = ?, 
+                RatePerCaseUSD = ?, 
+                TotalRateInUSDFobIndia = ?, 
+                TotalNetWeight = ?, 
+                TotalGrossWeight = ?, 
+                TotalVolume = ?
+                WHERE CPE_ID = ?;
+            `;
+
+            const values = [
                 row.TotalCases || null,
                 row.TotalQty || null,
                 row.RatePerUnitUSD || null,
@@ -2049,12 +2054,12 @@ app.post("/update-enquiry", async (req, res) => {
                 row.TotalGrossWeight || null,
                 row.TotalVolume || null,
                 row.CPE_ID,
-            ]
-        );
-    });
+            ];
 
-    try {
-        const [result] = await pool.query(queries); // Use await instead of callback
+            await connection.query(query, values);
+        }
+
+        connection.release(); // Release connection after updates
         res.json({ message: "Data updated successfully" });
     } catch (err) {
         console.error("Error updating data:", err);
