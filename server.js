@@ -1159,66 +1159,63 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     try {
         // Check if the OrderID belongs to the UserID
         const [rows] = await pool.query(`
-            SELECT * FROM Orders WHERE OrderID = ? AND UserID = ?
+            SELECT 1 FROM Orders WHERE OrderID = ? AND UserID = ?
         `, [orderId, userId]);
 
         if (!rows?.length) {
             return res.status(404).json({ message: 'Order not found for this user' });
         }
 
-        // **Update Order Details (No Duplicate Entries)**
+        // Update order details to avoid duplicate entries
         await pool.query(`
             UPDATE Orders SET 
-                ShippingStatus = IFNULL(?, ShippingStatus),
-                BLNumber = IFNULL(?, BLNumber),
-                ShippingLines = IFNULL(?, ShippingLines),
-                ETA = IFNULL(?, ETA),
-                ProformaInvoiceNumber = IFNULL(?, ProformaInvoiceNumber),
-                CommercialInvoiceNumber = IFNULL(?, CommercialInvoiceNumber),
-                CommercialInvoiceDate = IFNULL(?, CommercialInvoiceDate),
-                ProformaInvoiceDate = IFNULL(?, ProformaInvoiceDate),
-                DischargePort = IFNULL(?, DischargePort),
-                FinalDestination = IFNULL(?, FinalDestination)
+                ShippingStatus = COALESCE(?, ShippingStatus),
+                BLNumber = COALESCE(?, BLNumber),
+                ShippingLines = COALESCE(?, ShippingLines),
+                ETA = COALESCE(?, ETA),
+                ProformaInvoiceNumber = COALESCE(?, ProformaInvoiceNumber),
+                CommercialInvoiceNumber = COALESCE(?, CommercialInvoiceNumber),
+                CommercialInvoiceDate = COALESCE(?, CommercialInvoiceDate),
+                ProformaInvoiceDate = COALESCE(?, ProformaInvoiceDate),
+                DischargePort = COALESCE(?, DischargePort),
+                FinalDestination = COALESCE(?, FinalDestination)
             WHERE OrderID = ?
         `, [
             ShippingStatus, BLNumber, ShippingLines, ETA,
-            ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate,
-            DischargePort, FinalDestination, orderId
+            ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination,
+            orderId
         ]);
 
-        // Check if files were uploaded
+        // Function to insert file records
+        const insertFileRecord = async (documentType, file) => {
+            const { originalname: fileName, path: filePath = '', mimetype: fileType = '' } = file;
+
+            await pool.query(`
+                INSERT INTO OrderFiles 
+                (OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            `, [orderId, userId, documentType, fileName, filePath, fileType]);
+        };
+
+        // Check if files exist before inserting into OrderFiles
         const files = req.files || {};
-        if (files && Object.keys(files).length > 0) {
-            // Function to insert file records (Duplicate Entries Allowed)
-            const insertFileRecord = async (documentType, file) => {
-                const { originalname: fileName, path: filePath = '', mimetype: fileType = '' } = file;
-                await pool.query(`
-                    INSERT INTO OrderFiles 
-                    (OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate) 
-                    VALUES (?, ?, ?, ?, ?, ?, NOW())
-                `, [orderId, userId, documentType, fileName, filePath, fileType]);
-            };
-
-            // Upload different types of files
-            if (files.quotationFile) {
-                await insertFileRecord('Quotation', files.quotationFile[0]);
-            }
-
-            if (files.proformaFile) {
-                await insertFileRecord('Proforma Invoice', files.proformaFile[0]);
-            }
-
-            if (files.shippingDocuments) {
-                await Promise.all(
-                    files.shippingDocuments.map((file) =>
-                        insertFileRecord('Shipping Documents', file)
-                    )
-                );
-            }
+        if (files.quotationFile) {
+            await insertFileRecord('Quotation', files.quotationFile[0]);
         }
 
-        res.status(200).json({ message: 'Files uploaded and order updated successfully' });
+        if (files.proformaFile) {
+            await insertFileRecord('Proforma Invoice', files.proformaFile[0]);
+        }
 
+        if (files.shippingDocuments) {
+            await Promise.all(
+                files.shippingDocuments.map((file) =>
+                    insertFileRecord('Shipping Documents', file)
+                )
+            );
+        }
+
+        res.status(200).json({ message: 'Files uploaded and order details updated successfully' });
     } catch (error) {
         console.error('Error uploading files:', error);
         res.status(500).json({ message: 'Internal Server Error. Please try again later.' });
@@ -1226,6 +1223,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 });
 
 module.exports = app;
+
 
 
 // API route to get files data for a specific user and order
