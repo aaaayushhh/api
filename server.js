@@ -1150,7 +1150,7 @@ const store = multer({
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     const { orderId, userId } = req.params;
     let { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber,
-        CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate } = req.body;
+        CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination } = req.body;
 
     if (!userId) {
         return res.status(400).json({ message: 'UserID is required' });
@@ -1181,6 +1181,8 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         CommercialInvoiceNumber = CommercialInvoiceNumber || null;
         CommercialInvoiceDate = CommercialInvoiceDate || null;
         ProformaInvoiceDate = ProformaInvoiceDate || null;
+        DischargePort = DischargePort || null;
+        FinalDestination = FinalDestination || null;
 
         // Function to insert file records
         const insertFileRecord = async (documentType, file) => {
@@ -1190,11 +1192,11 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 INSERT INTO OrderFiles 
                 (OrderID, UserID, DocumentType, FileName, FilePath, FileType, 
                 UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, 
-                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate)
+                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination)
                 VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)
             `, [orderId, userId, documentType, fileName, filePath, fileType,
                 ShippingStatus, BLNumber, ShippingLines, ETA,
-                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate]);
+                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination]);
         };
 
         // Upload different types of files
@@ -1233,7 +1235,7 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
                    UploadDate, ShippingStatus, BLNumber,
                    ShippingLines, ETA,
                    ProformaInvoiceNumber, CommercialInvoiceNumber, 
-                   CommercialInvoiceDate, ProformaInvoiceDate
+                   CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ?
         `, [userId, orderId]);
