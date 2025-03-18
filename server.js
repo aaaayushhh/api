@@ -1193,7 +1193,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 (OrderID, UserID, DocumentType, FileName, FilePath, FileType, 
                 UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, 
                 ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination)
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `, [orderId, userId, documentType, fileName, filePath, fileType,
                 ShippingStatus, BLNumber, ShippingLines, ETA,
                 ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination]);
