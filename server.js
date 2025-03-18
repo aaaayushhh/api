@@ -1189,12 +1189,12 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
             await pool.query(`
                 INSERT INTO OrderFiles 
                 (OrderID, UserID, DocumentType, FileName, FilePath, FileType, 
-                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber, CommercialInvoiceNumber, 
-                CommercialInvoiceDate, ProformaInvoiceDate)
-                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
+                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, 
+                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate)
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?)
             `, [orderId, userId, documentType, fileName, filePath, fileType,
-                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber, CommercialInvoiceNumber,
-                CommercialInvoiceDate, ProformaInvoiceDate]);
+                ShippingStatus, BLNumber, ShippingLines, ETA,
+                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate]);
         };
 
         // Upload different types of files
