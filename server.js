@@ -1149,7 +1149,8 @@ const store = multer({
 
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     const { orderId, userId } = req.params;
-    let { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber } = req.body;
+    let { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber,
+        CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate } = req.body;
 
     if (!userId) {
         return res.status(400).json({ message: 'UserID is required' });
@@ -1177,6 +1178,9 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         ShippingLines = ShippingLines || null;
         ETA = ETA || null;
         ProformaInvoiceNumber = ProformaInvoiceNumber || null;
+        CommercialInvoiceNumber = CommercialInvoiceNumber || null;
+        CommercialInvoiceDate = CommercialInvoiceDate || null;
+        ProformaInvoiceDate = ProformaInvoiceDate || null;
 
         // Function to insert file records
         const insertFileRecord = async (documentType, file) => {
@@ -1185,10 +1189,12 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
             await pool.query(`
                 INSERT INTO OrderFiles 
                 (OrderID, UserID, DocumentType, FileName, FilePath, FileType, 
-                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber)
+                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber, CommercialInvoiceNumber, 
+                CommercialInvoiceDate, ProformaInvoiceDate)
                 VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
             `, [orderId, userId, documentType, fileName, filePath, fileType,
-                ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber]);
+                ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber, CommercialInvoiceNumber,
+                CommercialInvoiceDate, ProformaInvoiceDate]);
         };
 
         // Upload different types of files
@@ -1226,7 +1232,8 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
             SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType,
                    UploadDate, ShippingStatus, BLNumber,
                    ShippingLines, ETA,
-                   ProformaInvoiceNumber
+                   ProformaInvoiceNumber, CommercialInvoiceNumber, 
+                   CommercialInvoiceDate, ProformaInvoiceDate
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ?
         `, [userId, orderId]);
