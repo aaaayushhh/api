@@ -1168,7 +1168,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
         // Update order details to avoid duplicate entries
         await pool.query(`
-            UPDATE Orders SET 
+            UPDATE OrderFiles SET 
                 ShippingStatus = COALESCE(?, ShippingStatus),
                 BLNumber = COALESCE(?, BLNumber),
                 ShippingLines = COALESCE(?, ShippingLines),
