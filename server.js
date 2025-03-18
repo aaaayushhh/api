@@ -1168,21 +1168,29 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
         // Update order details to avoid duplicate entries
         await pool.query(`
-            UPDATE OrderFiles SET 
-                ShippingStatus = COALESCE(?, ShippingStatus),
-                BLNumber = COALESCE(?, BLNumber),
-                ShippingLines = COALESCE(?, ShippingLines),
-                ETA = COALESCE(?, ETA),
-                ProformaInvoiceNumber = COALESCE(?, ProformaInvoiceNumber),
-                CommercialInvoiceNumber = COALESCE(?, CommercialInvoiceNumber),
-                CommercialInvoiceDate = COALESCE(?, CommercialInvoiceDate),
-                ProformaInvoiceDate = COALESCE(?, ProformaInvoiceDate),
-                DischargePort = COALESCE(?, DischargePort),
-                FinalDestination = COALESCE(?, FinalDestination)
+            UPDATE Orders SET 
+                ShippingStatus = IF(? = '', ShippingStatus, ?),
+                BLNumber = IF(? = '', BLNumber, ?),
+                ShippingLines = IF(? = '', ShippingLines, ?),
+                ETA = IF(? = '', ETA, ?),
+                ProformaInvoiceNumber = IF(? = '', ProformaInvoiceNumber, ?),
+                CommercialInvoiceNumber = IF(? = '', CommercialInvoiceNumber, ?),
+                CommercialInvoiceDate = IF(? = '', CommercialInvoiceDate, ?),
+                ProformaInvoiceDate = IF(? = '', ProformaInvoiceDate, ?),
+                DischargePort = IF(? = '', DischargePort, ?),
+                FinalDestination = IF(? = '', FinalDestination, ?)
             WHERE OrderID = ?
         `, [
-            ShippingStatus, BLNumber, ShippingLines, ETA,
-            ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination,
+            ShippingStatus, ShippingStatus,
+            BLNumber, BLNumber,
+            ShippingLines, ShippingLines,
+            ETA, ETA,
+            ProformaInvoiceNumber, ProformaInvoiceNumber,
+            CommercialInvoiceNumber, CommercialInvoiceNumber,
+            CommercialInvoiceDate, CommercialInvoiceDate,
+            ProformaInvoiceDate, ProformaInvoiceDate,
+            DischargePort, DischargePort,
+            FinalDestination, FinalDestination,
             orderId
         ]);
 
