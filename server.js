@@ -1193,7 +1193,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 CommercialInvoiceDate, ProformaInvoiceDate)
                 VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)
             `, [orderId, userId, documentType, fileName, filePath, fileType,
-                ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber, CommercialInvoiceNumber,
+                UploadDate, ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber, CommercialInvoiceNumber,
                 CommercialInvoiceDate, ProformaInvoiceDate]);
         };
 
