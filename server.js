@@ -224,13 +224,30 @@ testConnection();
 // Define routes
 app.get("/GetAllProducts", async (req, res) => {
     try {
-        const [rows] = await pool.query("SELECT * FROM cornitos_master");
-        res.json({ msg: "Data Fetched Successfully", data: rows });
+        const [rows] = await pool.query(`
+            SELECT ID, CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, 
+                   PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, 
+                   SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, 
+                   HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE, 
+                   COALESCE(Image_URL, '') AS Image_URL
+            FROM cornitos_master
+        `);
+
+        // Format Image URLs properly
+        const updatedRows = rows.map(item => ({
+            ...item,
+            Image_URL: item.Image_URL
+                ? `https://api-ft5g.onrender.com/uploads/${item.Image_URL}`
+                : ""  // Empty string if no image
+        }));
+
+        res.json({ msg: "Data Fetched Successfully", data: updatedRows });
     } catch (err) {
         console.error("Query Failed:", err);
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
+
 
 app.get("/GetCategoryandSubCategory", async (req, res) => {
     try {
