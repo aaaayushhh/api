@@ -2126,6 +2126,51 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 
+// Storage Configuration (Extract SKU from Filename)
+const imagestorage = multer.diskStorage({
+    destination: 'uploads/', // Change if using cloud storage
+    filename: (req, file, cb) => {
+        const sku = path.parse(file.originalname).name; // Extract SKU from filename
+        cb(null, `${sku}${path.extname(file.originalname)}`); // Save as SKU.ext
+    }
+});
+
+const uploadimage = multer({ imagestorage });
+
+// 📌 API for Single or Multiple Image Upload (SKU from Filename)
+app.post('/upload-images', uploadimage.array('images'), async (req, res) => {
+    try {
+        const files = req.files;
+        let updatedProducts = [];
+
+        if (!files || files.length === 0) {
+            return res.status(400).json({ error: 'No images uploaded' });
+        }
+
+        for (const file of files) {
+            const SKU_CODE = path.parse(file.filename).name; // Extract SKU from filename
+            const Image_URL = `uploads/${file.filename}`;
+
+            // Update database with image URL
+            const [result] = await db.query('UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?', [Image_URL, SKU_CODE]);
+
+            if (result.affectedRows > 0) {
+                updatedProducts.push({ SKU_CODE, Image_URL });
+            }
+        }
+
+        if (updatedProducts.length === 0) {
+            return res.status(400).json({ error: 'No valid SKUs found in filenames' });
+        }
+
+        res.json({ message: 'Images uploaded successfully', updatedProducts });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to upload images' });
+    }
+});
+
+
+
 // Set the server to listen on PORT
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
