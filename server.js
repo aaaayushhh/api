@@ -198,7 +198,8 @@ const pool = mysql.createPool({
     database: "eximtrac",
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    connectTimeout: 20000, // ⏳ 20 seconds timeout
 });
 
 
