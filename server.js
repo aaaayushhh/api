@@ -2128,52 +2128,52 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 // Storage Configuration (Extract SKU from Filename)
-const imagestorage = multer.diskStorage({
-    destination: "uploads/", // Change if using cloud storage
-    filename: (req, file, cb) => {
-        const sku = path.parse(file.originalname).name; // Extract SKU from filename
-        cb(null, `${sku}${path.extname(file.originalname)}`); // Save as SKU.ext
-    }
-});
+// const imagestorage = multer.diskStorage({
+//     destination: "uploads/", // Change if using cloud storage
+//     filename: (req, file, cb) => {
+//         const sku = path.parse(file.originalname).name; // Extract SKU from filename
+//         cb(null, `${sku}${path.extname(file.originalname)}`); // Save as SKU.ext
+//     }
+// });
 
-const uploadimage = multer({ storage: imagestorage });
+// const uploadimage = multer({ storage: imagestorage });
 
-app.post("/upload-images", uploadimage.array("images, 20"), async (req, res) => {
-    try {
-        const files = req.files;
-        let updatedProducts = [];
+// app.post("/upload-images", uploadimage.array("images, 20"), async (req, res) => {
+//     try {
+//         const files = req.files;
+//         let updatedProducts = [];
 
-        if (!files || files.length === 0) {
-            return res.status(400).json({ error: "No images uploaded" });
-        }
+//         if (!files || files.length === 0) {
+//             return res.status(400).json({ error: "No images uploaded" });
+//         }
 
-        for (const file of files) {
-            const SKU_CODE = path.parse(file.filename).name; // Extract SKU from filename
-            const Image_URL = `uploads/${file.filename}`;
+//         for (const file of files) {
+//             const SKU_CODE = path.parse(file.filename).name; // Extract SKU from filename
+//             const Image_URL = `uploads/${file.filename}`;
 
-            console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
+//             console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
 
-            // ✅ Use `pool.execute()` instead of `db.query()`
-            const [result] = await pool.execute(
-                "UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?",
-                [Image_URL, SKU_CODE]
-            );
+//             // ✅ Use `pool.execute()` instead of `db.query()`
+//             const [result] = await pool.execute(
+//                 "UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?",
+//                 [Image_URL, SKU_CODE]
+//             );
 
-            if (result.affectedRows > 0) {
-                updatedProducts.push({ SKU_CODE, Image_URL });
-            }
-        }
+//             if (result.affectedRows > 0) {
+//                 updatedProducts.push({ SKU_CODE, Image_URL });
+//             }
+//         }
 
-        if (updatedProducts.length === 0) {
-            return res.status(400).json({ error: "No valid SKUs found in filenames" });
-        }
+//         if (updatedProducts.length === 0) {
+//             return res.status(400).json({ error: "No valid SKUs found in filenames" });
+//         }
 
-        res.json({ message: "Images uploaded successfully", updatedProducts });
-    } catch (error) {
-        console.error("Upload Error:", error);
-        res.status(500).json({ error: "Failed to upload images", details: error.message });
-    }
-});
+//         res.json({ message: "Images uploaded successfully", updatedProducts });
+//     } catch (error) {
+//         console.error("Upload Error:", error);
+//         res.status(500).json({ error: "Failed to upload images", details: error.message });
+//     }
+// });
 
 
 
