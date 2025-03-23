@@ -1946,10 +1946,11 @@ module.exports = app;
 
 
 app.post("/send-enquiry-email", async (req, res) => {
-    const { email } = req.body;  // Email ID of the user
+    const { email } = req.body; // Email ID of the user
+    const adminEmail = "admin@example.com"; // Hardcoded admin email
 
     if (!email) {
-        return res.status(400).json({ message: "Email is required" });
+        return res.status(400).json({ message: "User email is required" });
     }
 
     // Configure your email transporter (use your SMTP credentials)
@@ -1961,25 +1962,39 @@ app.post("/send-enquiry-email", async (req, res) => {
         },
     });
 
-    let mailOptions = {
+    // Email for the user
+    let userMailOptions = {
         from: "ayushsshah04@gmail.com",
         to: email,
         subject: "Order Enquiry Placed",
-        text: `Dear Customer, \n\nYour order enquiry has been placed successfully. We will get back to you shortly.\n\nBest Regards,\nEximtrac`,
+        text: `Dear Customer,\n\nYour order enquiry has been placed successfully. We will get back to you shortly.\n\nBest Regards,\nEximtrac`,
+    };
+
+    // Email for the admin
+    let adminMailOptions = {
+        from: "ayushsshah04@gmail.com",
+        to: adminEmail,
+        subject: "New Order Enquiry Received",
+        text: `Hello Admin,\n\nA new order enquiry has been placed by the user: ${email}.\n\nPlease check the system for details.\n\nBest Regards,\nEximtrac`,
     };
 
     try {
-        let info = await transporter.sendMail(mailOptions);
-        console.log("Email sent: ", info.response);
-        res.json({ message: "Email sent successfully" });
+        // Send email to the user
+        let userEmailInfo = await transporter.sendMail(userMailOptions);
+        console.log("User Email sent: ", userEmailInfo.response);
+
+        // Send email to the admin
+        let adminEmailInfo = await transporter.sendMail(adminMailOptions);
+        console.log("Admin Email sent: ", adminEmailInfo.response);
+
+        res.json({ message: "Emails sent successfully" });
     } catch (error) {
         console.error("Email Error:", error);
-        res.status(500).json({ message: "Failed to send email", error: error.toString() });
+        res.status(500).json({ message: "Failed to send emails", error: error.toString() });
     }
 });
 
 module.exports = app;
-
 
 
 
@@ -2124,6 +2139,8 @@ app.post("/update-enquiry-user-side", async (req, res) => {
         res.status(500).json({ message: "Server error" });
     }
 });
+
+
 
 
 
