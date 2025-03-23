@@ -1947,7 +1947,7 @@ module.exports = app;
 
 app.post("/send-enquiry-email", async (req, res) => {
     const { email } = req.body; // Email ID of the user
-    const adminEmail = "admin@example.com"; // Hardcoded admin email
+    const adminEmail = "ayushsshah04@gmail.com"; // Hardcoded admin email
 
     if (!email) {
         return res.status(400).json({ message: "User email is required" });
