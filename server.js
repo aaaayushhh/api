@@ -2127,7 +2127,7 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 // Storage Configuration (Extract SKU from Filename)
-const imagestorage = multer.diskStorage({
+const imageStorage = multer.diskStorage({
     destination: 'uploads/', // Change if using cloud storage
     filename: (req, file, cb) => {
         const sku = path.parse(file.originalname).name; // Extract SKU from filename
@@ -2135,10 +2135,10 @@ const imagestorage = multer.diskStorage({
     }
 });
 
-const uploadimage = multer({ imagestorage });
+const uploadImage = multer({ storage: imageStorage });
 
 // 📌 API for Single or Multiple Image Upload (SKU from Filename)
-app.post('/upload-images', uploadimage.array('images'), async (req, res) => {
+app.post('/upload-images', uploadImage.array('images'), async (req, res) => {
     try {
         const files = req.files;
         let updatedProducts = [];
@@ -2151,8 +2151,13 @@ app.post('/upload-images', uploadimage.array('images'), async (req, res) => {
             const SKU_CODE = path.parse(file.filename).name; // Extract SKU from filename
             const Image_URL = `uploads/${file.filename}`;
 
+            console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
+
             // Update database with image URL
-            const [result] = await db.query('UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?', [Image_URL, SKU_CODE]);
+            const [result] = await db.query(
+                'UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?',
+                [Image_URL, SKU_CODE]
+            );
 
             if (result.affectedRows > 0) {
                 updatedProducts.push({ SKU_CODE, Image_URL });
@@ -2165,7 +2170,8 @@ app.post('/upload-images', uploadimage.array('images'), async (req, res) => {
 
         res.json({ message: 'Images uploaded successfully', updatedProducts });
     } catch (error) {
-        res.status(500).json({ error: 'Failed to upload images' });
+        console.error('Upload Error:', error);
+        res.status(500).json({ error: 'Failed to upload images', details: error.message });
     }
 });
 
