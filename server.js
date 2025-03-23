@@ -2137,40 +2137,35 @@ const imagestorage = multer.diskStorage({
 
 const uploadimage = multer({ storage: imagestorage });
 
-app.post("/upload-images", uploadimage.array("images"), async (req, res) => {
+app.post('/upload-images', uploadimage.array('images'), async (req, res) => {
     try {
         const files = req.files;
-        let updatedProducts = [];
-
         if (!files || files.length === 0) {
-            return res.status(400).json({ error: "No images uploaded" });
+            return res.status(400).json({ error: 'No images uploaded' });
         }
+
+        let updateQueries = [];
+        let queryParams = [];
 
         for (const file of files) {
             const SKU_CODE = path.parse(file.filename).name; // Extract SKU from filename
             const Image_URL = `uploads/${file.filename}`;
-
-            console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
-
-            // ✅ Use `pool.execute()` instead of `db.query()`
-            const [result] = await pool.execute(
-                "UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?",
-                [Image_URL, SKU_CODE]
-            );
-
-            if (result.affectedRows > 0) {
-                updatedProducts.push({ SKU_CODE, Image_URL });
-            }
+            updateQueries.push(`WHEN ? THEN ?`);
+            queryParams.push(SKU_CODE, Image_URL);
         }
 
-        if (updatedProducts.length === 0) {
-            return res.status(400).json({ error: "No valid SKUs found in filenames" });
-        }
+        const query = `
+            UPDATE cornitos_master 
+            SET Image_URL = CASE SKU_CODE ${updateQueries.join(" ")} END
+            WHERE SKU_CODE IN (${files.map(() => "?").join(",")})
+        `;
 
-        res.json({ message: "Images uploaded successfully", updatedProducts });
+        await pool.execute(query, [...queryParams, ...files.map(f => path.parse(f.filename).name)]);
+
+        res.json({ message: 'Images uploaded successfully' });
     } catch (error) {
         console.error("Upload Error:", error);
-        res.status(500).json({ error: "Failed to upload images", details: error.message });
+        res.status(500).json({ error: 'Failed to upload images' });
     }
 });
 
