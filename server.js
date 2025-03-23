@@ -156,9 +156,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ✅ Serve static files from the "uploads" folder
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
 // Middleware
 app.use(bodyParser.json());
 
@@ -2131,16 +2128,21 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 // Storage Configuration (Extract SKU from Filename)
-// Ensure "uploads" directory exists
+
+// ✅ Serve static files from "uploads"
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// ✅ Ensure "uploads" directory exists
 const uploadDir = path.join(__dirname, "uploads");
 
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// ✅ Configure Multer Storage
 const imagestorage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadDir); // Store in uploads/ folder
+        cb(null, uploadDir); // Store files in /uploads/
     },
     filename: (req, file, cb) => {
         const sku = path.parse(file.originalname).name;
@@ -2150,6 +2152,7 @@ const imagestorage = multer.diskStorage({
 
 const uploadimage = multer({ storage: imagestorage });
 
+// ✅ Image Upload API
 app.post("/upload-images", uploadimage.array("images"), async (req, res) => {
     try {
         const files = req.files;
@@ -2160,12 +2163,12 @@ app.post("/upload-images", uploadimage.array("images"), async (req, res) => {
         }
 
         for (const file of files) {
-            const SKU_CODE = path.parse(file.filename).name; // Extract SKU from filename
-            const Image_URL = `uploads/${file.filename}`;
+            const SKU_CODE = path.parse(file.filename).name;
+            const Image_URL = `/uploads/${file.filename}`; // ✅ Use absolute path
 
             console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
 
-            // ✅ Use `pool.execute()` instead of `db.query()`
+            // ✅ Use `pool.execute()` to update DB
             const [result] = await pool.execute(
                 "UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?",
                 [Image_URL, SKU_CODE]
