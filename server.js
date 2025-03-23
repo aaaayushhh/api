@@ -2150,8 +2150,12 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 // Storage Configuration (Extract SKU from Filename)
 
-// ✅ Serve static files from "uploads"
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.use("/uploads", (req, res, next) => {
+    console.log("Serving Static File:", req.url); // ✅ Debugging
+    next();
+});
 
 // ✅ Ensure "uploads" directory exists
 const uploadDir = path.join(__dirname, "uploads");
