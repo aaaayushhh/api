@@ -2129,11 +2129,20 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 // Storage Configuration (Extract SKU from Filename)
+// Ensure "uploads" directory exists
+const uploadDir = path.join(__dirname, "uploads");
+
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const imagestorage = multer.diskStorage({
-    destination: "uploads/", // Change if using cloud storage
+    destination: (req, file, cb) => {
+        cb(null, uploadDir); // Store in uploads/ folder
+    },
     filename: (req, file, cb) => {
-        const sku = path.parse(file.originalname).name; // Extract SKU from filename
-        cb(null, `${sku}${path.extname(file.originalname)}`); // Save as SKU.ext
+        const sku = path.parse(file.originalname).name;
+        cb(null, `${sku}${path.extname(file.originalname)}`);
     }
 });
 
