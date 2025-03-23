@@ -2127,24 +2127,23 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 // Storage Configuration (Extract SKU from Filename)
-const imageStorage = multer.diskStorage({
-    destination: 'uploads/', // Change if using cloud storage
+const imagestorage = multer.diskStorage({
+    destination: "uploads/", // Change if using cloud storage
     filename: (req, file, cb) => {
         const sku = path.parse(file.originalname).name; // Extract SKU from filename
         cb(null, `${sku}${path.extname(file.originalname)}`); // Save as SKU.ext
     }
 });
 
-const uploadImage = multer({ storage: imageStorage });
+const uploadimage = multer({ storage: imagestorage });
 
-// 📌 API for Single or Multiple Image Upload (SKU from Filename)
-app.post('/upload-images', uploadImage.array('images'), async (req, res) => {
+app.post("/upload-images", uploadimage.array("images"), async (req, res) => {
     try {
         const files = req.files;
         let updatedProducts = [];
 
         if (!files || files.length === 0) {
-            return res.status(400).json({ error: 'No images uploaded' });
+            return res.status(400).json({ error: "No images uploaded" });
         }
 
         for (const file of files) {
@@ -2153,9 +2152,9 @@ app.post('/upload-images', uploadImage.array('images'), async (req, res) => {
 
             console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
 
-            // Update database with image URL
-            const [result] = await db.query(
-                'UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?',
+            // ✅ Use `pool.execute()` instead of `db.query()`
+            const [result] = await pool.execute(
+                "UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?",
                 [Image_URL, SKU_CODE]
             );
 
@@ -2165,13 +2164,13 @@ app.post('/upload-images', uploadImage.array('images'), async (req, res) => {
         }
 
         if (updatedProducts.length === 0) {
-            return res.status(400).json({ error: 'No valid SKUs found in filenames' });
+            return res.status(400).json({ error: "No valid SKUs found in filenames" });
         }
 
-        res.json({ message: 'Images uploaded successfully', updatedProducts });
+        res.json({ message: "Images uploaded successfully", updatedProducts });
     } catch (error) {
-        console.error('Upload Error:', error);
-        res.status(500).json({ error: 'Failed to upload images', details: error.message });
+        console.error("Upload Error:", error);
+        res.status(500).json({ error: "Failed to upload images", details: error.message });
     }
 });
 
