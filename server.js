@@ -224,18 +224,11 @@ testConnection();
 // Define routes
 app.get("/GetAllProducts", async (req, res) => {
     try {
-        // Step 1: Send an immediate response indicating loading
-        res.write(`data: { "loading": true }\n\n`);
-
-        // Step 2: Fetch data from the database
         const [products] = await pool.execute("SELECT * FROM cornitos_master");
 
         console.log("Fetched Products:", products); // ✅ Debugging
 
-        // Step 3: Send the actual data
-        res.write(`data: { "loading": false, "data": ${JSON.stringify(products)} }\n\n`);
-        res.end(); // Close the response
-
+        res.json({ data: products });
     } catch (error) {
         console.error("Error fetching products:", error);
         res.status(500).json({ error: "Failed to fetch products" });
