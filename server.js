@@ -228,10 +228,25 @@ app.get("/GetAllProducts", async (req, res) => {
 
         console.log("Fetched Products:", products); // ✅ Debugging
 
-        res.json({ data: products });
+        // Fetch images for each product and attach them
+        const productsWithImages = await Promise.all(
+            products.map(async (product) => {
+                const [images] = await pool.execute(
+                    "SELECT TO_BASE64(image_data) AS image_base64 FROM product_images WHERE SKU_CODE = ?",
+                    [product.SKU_CODE]
+                );
+
+                return {
+                    ...product,
+                    image_urls: images.map((img) => `data:image/jpeg;base64,${img.image_base64}`),
+                };
+            })
+        );
+
+        res.json({ data: productsWithImages });
     } catch (error) {
         console.error("Error fetching products:", error);
-        res.status(500).json({ error: "Failed to fetch products" });
+        res.status(500).json({ error: "Failed to fetch products", details: error.message });
     }
 });
 
@@ -2147,73 +2162,39 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 
 
+const imagestorage = multer.memoryStorage();
+const imageupload = multer({ storage: imagestorage });
 
-// Storage Configuration (Extract SKU from Filename)
-
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-app.use("/uploads", (req, res, next) => {
-    console.log("Serving Static File:", req.url); // ✅ Debugging
-    next();
-});
-
-// ✅ Ensure "uploads" directory exists
-const uploadDir = path.join(__dirname, "uploads");
-
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// ✅ Configure Multer Storage
-const imagestorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir); // Store files in /uploads/
-    },
-    filename: (req, file, cb) => {
-        const sku = path.parse(file.originalname).name;
-        cb(null, `${sku}${path.extname(file.originalname)}`);
-    }
-});
-
-const uploadimage = multer({ storage: imagestorage });
-
-// ✅ Image Upload API
-app.post("/upload-images", uploadimage.array("images"), async (req, res) => {
+app.post("/upload-images", imageupload.array("images"), async (req, res) => {
     try {
         const files = req.files;
-        let updatedProducts = [];
 
         if (!files || files.length === 0) {
             return res.status(400).json({ error: "No images uploaded" });
         }
 
+        let updates = [];
+
         for (const file of files) {
-            const SKU_CODE = path.parse(file.filename).name;
-            const Image_URL = `/uploads/${file.filename}`; // ✅ Use absolute path
+            const SKU_CODE = path.parse(file.originalname).name; // Extract SKU from filename
+            const imageBuffer = file.buffer; // Convert file to Buffer
 
-            console.log(`Updating SKU: ${SKU_CODE} with Image URL: ${Image_URL}`);
-
-            // ✅ Use `pool.execute()` to update DB
-            const [result] = await pool.execute(
-                "UPDATE cornitos_master SET Image_URL = ? WHERE SKU_CODE = ?",
-                [Image_URL, SKU_CODE]
+            // Store Image in MySQL with the same SKU
+            await pool.execute(
+                "INSERT INTO product_images (SKU_CODE, image_data) VALUES (?, ?)",
+                [SKU_CODE, imageBuffer]
             );
 
-            if (result.affectedRows > 0) {
-                updatedProducts.push({ SKU_CODE, Image_URL });
-            }
+            updates.push({ SKU_CODE });
         }
 
-        if (updatedProducts.length === 0) {
-            return res.status(400).json({ error: "No valid SKUs found in filenames" });
-        }
-
-        res.json({ message: "Images uploaded successfully", updatedProducts });
+        res.json({ message: "Images uploaded successfully", updates });
     } catch (error) {
         console.error("Upload Error:", error);
-        res.status(500).json({ error: "Failed to upload images", details: error.message });
+        res.status(500).json({ error: "Upload failed", details: error.message });
     }
 });
+
 
 
 
