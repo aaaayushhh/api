@@ -1326,15 +1326,20 @@ module.exports = app;
 
 
 // Multer configuration for file uploads
+// Ensure 'uploads' directory exists
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Multer storage setup
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        const uploadDir = 'uploads/';
-        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         cb(null, `${Date.now()}-${file.originalname}`);
-    },
+    }
 });
 
 // Multer file filter: Allow only CSV files
@@ -1348,94 +1353,78 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter }).single('file'); // Accept single file
 
-// API Route
-app.post('/upload-csv', upload, async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ message: "No file uploaded." });
-        }
+// Route to handle CSV upload
+app.post('/upload-csv', async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+    }
 
-        const filePath = req.file.path;
-        const rows = [];
+    console.log("Uploaded file:", req.file);
 
-        // Read and parse the CSV file
-        fs.createReadStream(filePath)
-            .pipe(csvParser())
-            .on('data', (row) => {
-                let normalizedRow = {};
-                Object.keys(row).forEach((key) => {
-                    normalizedRow[key.toUpperCase()] = row[key];
-                });
-                rows.push(normalizedRow);
-            })
-            .on('end', async () => {
-                try {
-                    for (const row of rows) {
-                        if (!row['CATEGORY']?.trim() || !row['PRODUCT_DESCRIPTION']?.trim() || !row['SKU_CODE']?.trim()) {
-                            console.warn("Skipping invalid row:", row);
-                            continue;
-                        }
+    const filePath = req.file.path;
+    const results = [];
 
-                        // Check if SKU_CODE already exists
-                        const checkQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`;
-                        const [existing] = await pool.query(checkQuery, [row['SKU_CODE']]);
+    fs.createReadStream(filePath)
+        .pipe(csvParser())
+        .on('data', (row) => {
+            results.push(row);
+        })
+        .on('end', async () => {
+            try {
+                for (let row of results) {
+                    const skuCode = row['SKU_CODE'];
 
-                        if (existing.length > 0 && existing[0].count > 0) {
-                            console.warn(`SKU_CODE ${row['SKU_CODE']} already exists.`);
-                            return res.status(400).json({
-                                message: `Data already exists for SKU_CODE: ${row['SKU_CODE']}.`,
-                                skuCode: row['SKU_CODE']
-                            });
-                        }
+                    // Check if SKU_CODE exists
+                    const checkQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`;
+                    const [existing] = await pool.query(checkQuery, [skuCode]);
 
-                        // Insert new record
-                        const insertQuery = `
-                            INSERT INTO cornitos_master (
-                                CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
-                                UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
-                                LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS,
-                                UNIT_MEASUREMENT_TYPE
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        `;
-
-                        const values = [
-                            row['CATEGORY'] || null, row['CATEGORY_CODE'] || null, row['SUB_CATEGORY'] || null,
-                            row['BRAND'] || null, row['CODE'] || null, row['SKU_CODE'] || null,
-                            row['PRODUCT_DESCRIPTION'] || null, row['UNIT'] || null, row['UNIT_PER_CTN'] || null,
-                            row['WEIGHT_PER_PKT_GRAMS'] || null, row['SHELF_LIFE_MONTHS'] || null, row['NET_WEIGHT'] || null,
-                            row['LENGTH_INCHES'] || null, row['WIDTH_INCHES'] || null, row['HEIGHT_INCHES'] || null,
-                            row['VOL_PER_CTN'] || null, row['BARCODE'] || null, row['MRP'] || null,
-                            row['REMARKS'] || null, row['UNIT_MEASUREMENT_TYPE'] || null
-                        ];
-
-                        await pool.query(insertQuery, values);
+                    if (existing.length > 0 && existing[0].count > 0) {
+                        console.warn(`SKU_CODE ${skuCode} already exists. Skipping row.`);
+                        continue; // Skip duplicate SKU
                     }
 
-                    // Delete the uploaded file after processing
-                    fs.unlink(filePath, (err) => {
-                        if (err) console.error("Error deleting file:", err);
-                    });
+                    // Insert into database
+                    const insertQuery = `
+                        INSERT INTO cornitos_master 
+                        (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-                    return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
-
-                } catch (error) {
-                    console.error('Error inserting data:', error);
-                    return res.status(500).json({ message: 'Error inserting data', error: error.message });
+                    await pool.query(insertQuery, [
+                        row['CATEGORY'],
+                        row['CATEGORY_CODE'],
+                        row['SUB_CATEGORY'],
+                        row['BRAND'],
+                        row['CODE'],
+                        row['SKU_CODE'],
+                        row['PRODUCT_DESCRIPTION'],
+                        row['UNIT'],
+                        row['UNIT_PER_CTN'],
+                        row['WEIGHT_PER_PKT_GRAMS'],
+                        row['SHELF_LIFE_MONTHS'],
+                        row['NET_WEIGHT'],
+                        row['LENGTH_INCHES'],
+                        row['WIDTH_INCHES'],
+                        row['HEIGHT_INCHES'],
+                        row['VOL_PER_CTN'],
+                        row['BARCODE'],
+                        row['MRP'],
+                        row['REMARKS'],
+                        row['UNIT_MEASUREMENT_TYPE']
+                    ]);
                 }
-            })
-            .on('error', (error) => {
-                console.error("Error reading CSV file:", error);
-                return res.status(500).json({ message: "Error processing file", error: error.message });
-            });
 
-    } catch (error) {
-        if (error instanceof multer.MulterError) {
-            return res.status(400).json({ message: error.message });
-        }
+                // Delete file after processing
+                fs.unlink(filePath, (err) => {
+                    if (err) console.error("Error deleting file:", err);
+                });
 
-        console.error('Server Error:', error);
-        return res.status(500).json({ message: 'Internal Server Error', error: error.message });
-    }
+                return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
+
+            } catch (error) {
+                console.error('Error inserting data:', error);
+                return res.status(500).json({ message: 'Error inserting data', error: error.message });
+            }
+        });
 });
 
 
