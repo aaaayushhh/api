@@ -1429,6 +1429,8 @@ app.post('/upload-csv', upload, async (req, res) => {
                     console.error('Error inserting data:', error);
                     return res.status(500).json({ message: 'Error inserting data', error: error.message });
                 }
+
+                console.log("Parsed Rows:", rows);
             })
             .on('error', (error) => {
                 console.error("Error reading CSV file:", error);
