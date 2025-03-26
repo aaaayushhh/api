@@ -1326,16 +1326,13 @@ module.exports = app;
 
 
 // Multer configuration for file uploads
-// Multer configuration for file uploads
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
+    destination: (req, file, cb) => {
         const uploadDir = 'uploads/';
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
-        }
+        if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
         cb(null, uploadDir);
     },
-    filename: function (req, file, cb) {
+    filename: (req, file, cb) => {
         cb(null, `${Date.now()}-${file.originalname}`);
     },
 });
@@ -1349,89 +1346,96 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const upload = multer({
-    storage,
-    fileFilter
-}).single('csvFile'); // Accepts only one file with field name 'csvFile'
+const upload = multer({ storage, fileFilter }).single('file'); // Accept single file
 
-// API Route for Uploading CSV
-app.post('/upload-csv', (req, res) => {
-    upload(req, res, async (err) => {
-        if (err) {
-            return res.status(400).json({ message: err.message });
-        }
-
+// API Route
+app.post('/upload-csv', upload, async (req, res) => {
+    try {
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded." });
         }
 
         const filePath = req.file.path;
         const rows = [];
-        const errors = [];
 
         // Read and parse the CSV file
         fs.createReadStream(filePath)
             .pipe(csvParser())
-            .on('headers', (headers) => {
-                console.log("🔍 CSV Column Headers:", headers);
-            })
             .on('data', (row) => {
-                const formattedRow = {
-                    CATEGORY: row['CATEGORY']?.trim() || row['﻿CATEGORY']?.trim() || "",
-                    PRODUCT_DESCRIPTION: row['PRODUCT_DESCRIPTION']?.trim() || "",
-                    SKU_CODE: row['SKU_CODE']?.trim() || "",
-                };
-
-                if (formattedRow.CATEGORY && formattedRow.PRODUCT_DESCRIPTION && formattedRow.SKU_CODE) {
-                    rows.push(formattedRow);
-                } else {
-                    console.warn("⚠️ Skipping invalid row:", row);
-                }
+                let normalizedRow = {};
+                Object.keys(row).forEach((key) => {
+                    normalizedRow[key.toUpperCase()] = row[key];
+                });
+                rows.push(normalizedRow);
             })
             .on('end', async () => {
                 try {
-                    if (rows.length === 0) {
-                        throw new Error("No valid rows found in CSV.");
-                    }
-
                     for (const row of rows) {
-                        const checkQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`;
-                        const [existing] = await pool.query(checkQuery, [row.SKU_CODE]);
-
-                        if (existing[0].count > 0) {
-                            errors.push(`Duplicate SKU_CODE found: ${row.SKU_CODE}`);
+                        if (!row['CATEGORY']?.trim() || !row['PRODUCT_DESCRIPTION']?.trim() || !row['SKU_CODE']?.trim()) {
+                            console.warn("Skipping invalid row:", row);
                             continue;
                         }
 
+                        // Check if SKU_CODE already exists
+                        const checkQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`;
+                        const [existing] = await pool.query(checkQuery, [row['SKU_CODE']]);
+
+                        if (existing.length > 0 && existing[0].count > 0) {
+                            console.warn(`SKU_CODE ${row['SKU_CODE']} already exists.`);
+                            return res.status(400).json({
+                                message: `Data already exists for SKU_CODE: ${row['SKU_CODE']}.`,
+                                skuCode: row['SKU_CODE']
+                            });
+                        }
+
+                        // Insert new record
                         const insertQuery = `
                             INSERT INTO cornitos_master (
-                                CATEGORY, PRODUCT_DESCRIPTION, SKU_CODE
-                            ) VALUES (?, ?, ?)
+                                CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION,
+                                UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT,
+                                LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS,
+                                UNIT_MEASUREMENT_TYPE
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         `;
 
-                        const values = [row.CATEGORY, row.PRODUCT_DESCRIPTION, row.SKU_CODE];
+                        const values = [
+                            row['CATEGORY'] || null, row['CATEGORY_CODE'] || null, row['SUB_CATEGORY'] || null,
+                            row['BRAND'] || null, row['CODE'] || null, row['SKU_CODE'] || null,
+                            row['PRODUCT_DESCRIPTION'] || null, row['UNIT'] || null, row['UNIT_PER_CTN'] || null,
+                            row['WEIGHT_PER_PKT_GRAMS'] || null, row['SHELF_LIFE_MONTHS'] || null, row['NET_WEIGHT'] || null,
+                            row['LENGTH_INCHES'] || null, row['WIDTH_INCHES'] || null, row['HEIGHT_INCHES'] || null,
+                            row['VOL_PER_CTN'] || null, row['BARCODE'] || null, row['MRP'] || null,
+                            row['REMARKS'] || null, row['UNIT_MEASUREMENT_TYPE'] || null
+                        ];
+
                         await pool.query(insertQuery, values);
                     }
 
                     // Delete the uploaded file after processing
-                    fs.unlinkSync(filePath);
-
-                    console.log("✅ CSV data successfully uploaded and saved!");
-                    return res.status(200).json({
-                        message: 'CSV data successfully uploaded and saved!',
-                        errors: errors.length > 0 ? errors : "No errors",
+                    fs.unlink(filePath, (err) => {
+                        if (err) console.error("Error deleting file:", err);
                     });
 
+                    return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
+
                 } catch (error) {
-                    console.error('🚨 Error inserting data:', error);
+                    console.error('Error inserting data:', error);
                     return res.status(500).json({ message: 'Error inserting data', error: error.message });
                 }
             })
             .on('error', (error) => {
-                console.error("🚨 Error reading CSV file:", error);
+                console.error("Error reading CSV file:", error);
                 return res.status(500).json({ message: "Error processing file", error: error.message });
             });
-    });
+
+    } catch (error) {
+        if (error instanceof multer.MulterError) {
+            return res.status(400).json({ message: error.message });
+        }
+
+        console.error('Server Error:', error);
+        return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+    }
 });
 
 
