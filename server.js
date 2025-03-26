@@ -1326,8 +1326,8 @@ module.exports = app;
 
 
 // Multer configuration for file uploads
-// Ensure 'uploads' directory exists
-const uploadDir = path.join(__dirname, 'uploads');
+// Multer storage setup
+const uploadDir = '/tmp/uploads';
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -1353,78 +1353,96 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({ storage, fileFilter }).single('file'); // Accept single file
 
+// Debugging middleware to log request details
+app.use((req, res, next) => {
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
+    console.log('Files:', req.file);
+    next();
+});
+
 // Route to handle CSV upload
-app.post('/upload-csv', async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: 'No file uploaded' });
-    }
+app.post('/upload-csv', (req, res) => {
+    upload(req, res, async function (err) {
+        if (err instanceof multer.MulterError) {
+            return res.status(400).json({ message: err.message });
+        } else if (err) {
+            return res.status(400).json({ message: 'File upload error', error: err.message });
+        }
 
-    console.log("Uploaded file:", req.file);
+        if (!req.file) {
+            return res.status(400).json({ message: 'No file uploaded' });
+        }
 
-    const filePath = req.file.path;
-    const results = [];
+        console.log("Uploaded file:", req.file);
 
-    fs.createReadStream(filePath)
-        .pipe(csvParser())
-        .on('data', (row) => {
-            results.push(row);
-        })
-        .on('end', async () => {
-            try {
-                for (let row of results) {
-                    const skuCode = row['SKU_CODE'];
+        const filePath = req.file.path;
+        const results = [];
 
-                    // Check if SKU_CODE exists
-                    const checkQuery = `SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`;
-                    const [existing] = await pool.query(checkQuery, [skuCode]);
+        fs.createReadStream(filePath)
+            .pipe(csvParser())
+            .on('data', (row) => {
+                results.push(row);
+            })
+            .on('end', async () => {
+                try {
+                    const connection = await pool.getConnection();
+                    for (let row of results) {
+                        const skuCode = row['SKU_CODE'];
 
-                    if (existing.length > 0 && existing[0].count > 0) {
-                        console.warn(`SKU_CODE ${skuCode} already exists. Skipping row.`);
-                        continue; // Skip duplicate SKU
+                        // Check if SKU_CODE exists
+                        const [existing] = await connection.query(`SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`, [skuCode]);
+
+                        if (existing.length > 0 && existing[0].count > 0) {
+                            console.warn(`SKU_CODE ${skuCode} already exists. Skipping row.`);
+                            continue; // Skip duplicate SKU
+                        }
+
+                        // Insert into database
+                        const insertQuery = `
+                            INSERT INTO cornitos_master 
+                            (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+                        await connection.query(insertQuery, [
+                            row['CATEGORY'],
+                            row['CATEGORY_CODE'],
+                            row['SUB_CATEGORY'],
+                            row['BRAND'],
+                            row['CODE'],
+                            row['SKU_CODE'],
+                            row['PRODUCT_DESCRIPTION'],
+                            row['UNIT'],
+                            row['UNIT_PER_CTN'],
+                            row['WEIGHT_PER_PKT_GRAMS'],
+                            row['SHELF_LIFE_MONTHS'],
+                            row['NET_WEIGHT'],
+                            row['LENGTH_INCHES'],
+                            row['WIDTH_INCHES'],
+                            row['HEIGHT_INCHES'],
+                            row['VOL_PER_CTN'],
+                            row['BARCODE'],
+                            row['MRP'],
+                            row['REMARKS'],
+                            row['UNIT_MEASUREMENT_TYPE']
+                        ]);
                     }
 
-                    // Insert into database
-                    const insertQuery = `
-                        INSERT INTO cornitos_master 
-                        (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                    connection.release();
 
-                    await pool.query(insertQuery, [
-                        row['CATEGORY'],
-                        row['CATEGORY_CODE'],
-                        row['SUB_CATEGORY'],
-                        row['BRAND'],
-                        row['CODE'],
-                        row['SKU_CODE'],
-                        row['PRODUCT_DESCRIPTION'],
-                        row['UNIT'],
-                        row['UNIT_PER_CTN'],
-                        row['WEIGHT_PER_PKT_GRAMS'],
-                        row['SHELF_LIFE_MONTHS'],
-                        row['NET_WEIGHT'],
-                        row['LENGTH_INCHES'],
-                        row['WIDTH_INCHES'],
-                        row['HEIGHT_INCHES'],
-                        row['VOL_PER_CTN'],
-                        row['BARCODE'],
-                        row['MRP'],
-                        row['REMARKS'],
-                        row['UNIT_MEASUREMENT_TYPE']
-                    ]);
+                    // Delete file after processing
+                    fs.unlink(filePath, (err) => {
+                        if (err) console.error("Error deleting file:", err);
+                    });
+
+                    return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
+
+                } catch (error) {
+                    console.error('Error inserting data:', error);
+                    return res.status(500).json({ message: 'Error inserting data', error: error.message });
                 }
-
-                // Delete file after processing
-                fs.unlink(filePath, (err) => {
-                    if (err) console.error("Error deleting file:", err);
-                });
-
-                return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
-
-            } catch (error) {
-                console.error('Error inserting data:', error);
-                return res.status(500).json({ message: 'Error inserting data', error: error.message });
-            }
-        });
+            });
+    });
 });
 
 
