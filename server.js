@@ -1377,7 +1377,7 @@ app.post('/upload-csv', upload, async (req, res) => {
             .on('end', async () => {
                 try {
                     for (const row of rows) {
-                        if (!row['CATEGORY'] || !row['PRODUCT_DESCRIPTION'] || !row['SKU_CODE']) {
+                        if (!row['CATEGORY']?.trim() || !row['PRODUCT_DESCRIPTION']?.trim() || !row['SKU_CODE']?.trim()) {
                             console.warn("Skipping invalid row:", row);
                             continue;
                         }
