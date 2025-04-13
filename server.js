@@ -514,8 +514,6 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
                 cpe.RatePerCaseUSD,
                 cpe.TotalRateInUSDFobIndia,
                 cpe.TotalNetWeight,
-                cpe.TotalGrossWeight,
-                cpe.TotalVolume,
                 cpe.UserStatus,
                 c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
@@ -564,8 +562,6 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
                 cpe.RatePerCaseUSD,
                 cpe.TotalRateInUSDFobIndia,
                 cpe.TotalNetWeight,
-                cpe.TotalGrossWeight,
-                cpe.TotalVolume,
                 cpe.UserStatus,
                 c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
@@ -2143,8 +2139,6 @@ app.post("/update-enquiry", async (req, res) => {
                 RatePerCaseUSD = ?, 
                 TotalRateInUSDFobIndia = ?, 
                 TotalNetWeight = ?, 
-                TotalGrossWeight = ?, 
-                TotalVolume = ?
                 WHERE CPE_ID = ?;
             `;
 
@@ -2154,8 +2148,6 @@ app.post("/update-enquiry", async (req, res) => {
                 row.RatePerCaseUSD || null,
                 row.TotalRateInUSDFobIndia || null,
                 row.TotalNetWeight || null,
-                row.TotalGrossWeight || null,
-                row.TotalVolume || null,
                 row.CPE_ID,
             ];
 
