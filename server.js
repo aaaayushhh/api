@@ -654,6 +654,7 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
 module.exports = app;
 
 // Container Place Enquiry
+// Container Place Enquiry
 app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
     const data = req.body;
 
@@ -661,10 +662,13 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
         return res.status(400).json({ message: 'An array of data is required' });
     }
 
+    // Validate input
     for (const item of data) {
         const { ProductID, UserID, CartonQty } = item;
         if (!ProductID || !UserID || CartonQty === undefined) {
-            return res.status(400).json({ message: 'All fields (ProductID, UserID, CartonQty) are required' });
+            return res.status(400).json({
+                message: 'All fields (ProductID, UserID, CartonQty) are required'
+            });
         }
     }
 
@@ -672,14 +676,45 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
         const orderId = uuidv4();
         const uploadDate = new Date();
 
+        const insertValues = [];
+
+        for (const item of data) {
+            const { ProductID, UserID, CartonQty } = item;
+
+            // Fetch UNIT_PER_CTN for calculating TotalQty
+            const [productRows] = await pool.query(
+                `SELECT UNIT_PER_CTN FROM cornitos_master WHERE ID = ?`,
+                [ProductID]
+            );
+
+            if (productRows.length === 0) {
+                return res.status(404).json({ message: `Product not found for ID: ${ProductID}` });
+            }
+
+            const unitPerCtn = productRows[0].UNIT_PER_CTN || 0;
+
+            // Calculate TotalQty
+            const TotalQty = CartonQty * unitPerCtn;
+
+            insertValues.push([
+                ProductID,
+                UserID,
+                CartonQty,
+                orderId,
+                uploadDate,
+                TotalQty
+            ]);
+        }
+
+        // Insert into DB
         const query = `
-            INSERT INTO container_place_enquiry (ProductID, UserID, CartonQty, OrderID, UploadDate)
+            INSERT INTO container_place_enquiry (
+                ProductID, UserID, CartonQty, OrderID, UploadDate, TotalQty
+            )
             VALUES ?
         `;
 
-        const values = data.map(item => [item.ProductID, item.UserID, item.CartonQty, orderId, uploadDate]);
-
-        await pool.query(query, [values]);
+        await pool.query(query, [insertValues]);
 
         console.log("✅ Enquiry placed successfully:", orderId);
         res.status(201).json({ message: "Enquiry placed successfully!", orderId });
@@ -688,6 +723,7 @@ app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
         res.status(500).json({ message: "Internal server error", error: error.message });
     }
 });
+
 
 // Delete all container data for a user
 app.delete('/delete-container-data', authMiddleware, async (req, res) => {
