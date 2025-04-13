@@ -2103,8 +2103,7 @@ app.post("/update-enquiry", async (req, res) => {
 
         for (const row of updatedRows) {
             const query = `
-                UPDATE container_place_enquiry SET 
-                TotalCases = ?, 
+                UPDATE container_place_enquiry SET  
                 TotalQty = ?, 
                 RatePerUnitUSD = ?, 
                 RatePerCaseUSD = ?, 
@@ -2116,7 +2115,6 @@ app.post("/update-enquiry", async (req, res) => {
             `;
 
             const values = [
-                row.TotalCases || null,
                 row.TotalQty || null,
                 row.RatePerUnitUSD || null,
                 row.RatePerCaseUSD || null,
