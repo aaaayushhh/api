@@ -2165,21 +2165,34 @@ app.post("/update-enquiry", async (req, res) => {
 
 
 app.post("/update-enquiry-user-side", async (req, res) => {
-    const { cpeId, status } = req.body;
+    const { updates } = req.body;
 
-    if (!cpeId || !status) {
-        return res.status(400).json({ message: "Missing CPE_ID or status" });
+    if (!updates || !Array.isArray(updates)) {
+        return res.status(400).json({ message: "Missing or invalid updates array" });
     }
 
+    const connection = await pool.getConnection();
     try {
-        await pool.execute(
-            "UPDATE container_place_enquiry SET UserStatus = ? WHERE CPE_ID = ?",
-            [status, cpeId]
-        );
-        res.json({ message: "Status updated successfully" });
+        await connection.beginTransaction();
+
+        for (const { cpeId, status } of updates) {
+            if (!cpeId || !status) {
+                throw new Error("Invalid update object");
+            }
+            await connection.execute(
+                "UPDATE container_place_enquiry SET UserStatus = ? WHERE CPE_ID = ?",
+                [status, cpeId]
+            );
+        }
+
+        await connection.commit();
+        res.json({ message: "All statuses updated successfully" });
     } catch (error) {
-        console.error("Error updating status:", error);
+        await connection.rollback();
+        console.error("Error updating statuses:", error);
         res.status(500).json({ message: "Server error" });
+    } finally {
+        connection.release();
     }
 });
 
