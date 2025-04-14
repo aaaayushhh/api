@@ -1199,7 +1199,7 @@ const store = multer({
 
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     const { orderId, userId } = req.params;
-    let { ShippingStatus, BLNumber, ShippingLines, ETA, ProformaInvoiceNumber,
+    let { ShippingStatus, BLNumber, ShippingLines, ETA, ETD, ProformaInvoiceNumber,
         CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination } = req.body;
 
     if (!userId) {
@@ -1223,6 +1223,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 BLNumber = IF(? = '', BLNumber, ?),
                 ShippingLines = IF(? = '', ShippingLines, ?),
                 ETA = IF(? = '', ETA, ?),
+                ETD = IF(? = '', ETD, ?),
                 ProformaInvoiceNumber = IF(? = '', ProformaInvoiceNumber, ?),
                 CommercialInvoiceNumber = IF(? = '', CommercialInvoiceNumber, ?),
                 CommercialInvoiceDate = IF(? = '', CommercialInvoiceDate, ?),
@@ -1235,6 +1236,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
             BLNumber, BLNumber,
             ShippingLines, ShippingLines,
             ETA, ETA,
+            ETD, ETD,
             ProformaInvoiceNumber, ProformaInvoiceNumber,
             CommercialInvoiceNumber, CommercialInvoiceNumber,
             CommercialInvoiceDate, CommercialInvoiceDate,
@@ -1292,7 +1294,7 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
         const [rows] = await pool.query(`
             SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType,
                    UploadDate, ShippingStatus, BLNumber,
-                   ShippingLines, ETA,
+                   ShippingLines, ETA, ETD,
                    ProformaInvoiceNumber, CommercialInvoiceNumber, 
                    CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
             FROM OrderFiles
