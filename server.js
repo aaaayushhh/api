@@ -1294,7 +1294,6 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
                    CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ?
-            ORDER BY o.UploadDate DESC
         `, [userId, orderId]);
 
         if (rows.length === 0) {
