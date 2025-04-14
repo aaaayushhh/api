@@ -1735,7 +1735,7 @@ app.get('/Get-orders', async (req, res) => {
             SELECT DISTINCT
                 o.OrderID, o.CartonQty, o.ProductID, o.UploadDate,
                 u.EmailID, u.UserID, u.FirstName, u.LastName, u.CompanyName,
-                ofiles.ShippingStatus
+                ofiles.ShippingStatus, ofiles.ProformaInvoiceNumber
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
             LEFT JOIN OrderFiles ofiles ON o.OrderID = ofiles.OrderID
