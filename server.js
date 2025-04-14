@@ -1192,7 +1192,6 @@ const store = multer({
         },
     }),
 }).fields([
-    { name: 'quotationFile', maxCount: 1 },
     { name: 'proformaFile', maxCount: 1 },
     { name: 'shippingDocuments', maxCount: 20 },
 ]);
@@ -1259,10 +1258,6 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
         // Check if files exist before inserting into OrderFiles
         const files = req.files || {};
-        if (files.quotationFile) {
-            await insertFileRecord('Quotation', files.quotationFile[0]);
-        }
-
         if (files.proformaFile) {
             await insertFileRecord('Proforma Invoice', files.proformaFile[0]);
         }
@@ -1299,6 +1294,7 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
                    CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ?
+            ORDER BY o.UploadDate DESC
         `, [userId, orderId]);
 
         if (rows.length === 0) {
