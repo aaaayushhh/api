@@ -1249,11 +1249,14 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         const insertFileRecord = async (documentType, file) => {
             const { originalname: fileName, path: filePath = '', mimetype: fileType = '' } = file;
 
+            // Read file content as binary
+            const fileContent = await fs.readFile(filePath);
+
             await pool.query(`
                 INSERT INTO OrderFiles 
-                (OrderID, UserID, DocumentType, FileName, FilePath, FileType, UploadDate)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-            `, [orderId, userId, documentType, fileName, filePath, fileType]);
+                (OrderID, UserID, DocumentType, FileName, FilePath, FileType, FileContent, UploadDate)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            `, [orderId, userId, documentType, fileName, filePath, fileType, fileContent]);
         };
 
         // Check if files exist before inserting into OrderFiles
@@ -1287,7 +1290,7 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
 
     try {
         const [rows] = await pool.query(`
-            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType,
+            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType, FileContent,
                    UploadDate, ShippingStatus, BLNumber,
                    ShippingLines, ETA, ETD,
                    ProformaInvoiceNumber, CommercialInvoiceNumber, 
@@ -1334,6 +1337,7 @@ app.get('/get-uploaded-files', async (req, res) => {
                    FileName,
                    FilePath,
                    FileType,
+                   FileContent,
                    ShippingStatus,
                    BLNumber,
                    ShippingLines,
