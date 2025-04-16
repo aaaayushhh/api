@@ -1265,7 +1265,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
             await insertFileRecord('Proforma Invoice', files.proformaFile[0]);
         }
 
-        if (files.shippingDocuments) {
+        if (Array.isArray(files.shippingDocuments)) {
             await Promise.all(
                 files.shippingDocuments.map((file) =>
                     insertFileRecord('Shipping Documents', file)
