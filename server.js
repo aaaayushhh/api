@@ -138,6 +138,7 @@ const mysql = require('mysql2/promise'); // Use promise-based mysql2
 const app = express();
 const cors = require('cors');
 const fs = require('fs');
+const fsPromises = fs.promises;
 const multer = require('multer');
 const path = require('path');
 const csvParser = require('csv-parser');
@@ -1249,8 +1250,10 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
         const insertFileRecord = async (documentType, file) => {
             const { originalname: fileName, path: filePath = '', mimetype: fileType = '' } = file;
 
+            console.log('Reading file from path:', filePath);
+
             // Read file content as binary
-            const fileContent = await fs.readFile(filePath);
+            const fileContent = await fsPromises.readFile(filePath);
 
             await pool.query(`
                 INSERT INTO OrderFiles 
@@ -1275,7 +1278,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
         res.status(200).json({ message: 'Files uploaded and order details updated successfully' });
     } catch (error) {
-        console.error('Error uploading files:', error);
+        console.error('Error uploading files:', error.message, error.stack);
         res.status(500).json({ message: 'Internal Server Error. Please try again later.' });
     }
 });
