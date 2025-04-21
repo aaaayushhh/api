@@ -147,6 +147,8 @@ const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const authMiddleware = require('./auth');
 const nodemailer = require("nodemailer");
+const archiver = require('archiver');
+const streamifier = require('streamifier');
 
 app.use(cors({
     origin: "*",
@@ -1285,6 +1287,46 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
 
 module.exports = app;
 
+
+app.get('/download-order-files-zip/:userId/:orderId', async (req, res) => {
+    const { userId, orderId } = req.params;
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT FileName, FileType, FileContent
+            FROM OrderFiles
+            WHERE UserID = ? AND OrderID = ?
+        `, [userId, orderId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No files found for the specified user and order"
+            });
+        }
+
+        res.setHeader('Content-Disposition', `attachment; filename=Order_${orderId}_Files.zip`);
+        res.setHeader('Content-Type', 'application/zip');
+
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        archive.pipe(res);
+
+        rows.forEach(file => {
+            const fileStream = streamifier.createReadStream(file.FileContent);
+            archive.append(fileStream, { name: file.FileName || `file-${Date.now()}.bin` });
+        });
+
+        archive.finalize();
+
+    } catch (error) {
+        console.error("Error creating zip:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to download zip file",
+            error: error.message
+        });
+    }
+});
 
 
 // API route to get files data for a specific user and order
