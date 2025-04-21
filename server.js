@@ -1323,6 +1323,40 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
     }
 });
 
+app.get('/get-shipment-details/:userId/:orderId', async (req, res) => {
+    const { userId, orderId } = req.params;
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT DISTINCT OrderID, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
+                   CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate,
+                   DischargePort, FinalDestination
+            FROM OrderFiles
+            WHERE UserID = ? AND OrderID = ?
+        `, [userId, orderId]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No shipment details found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            shipment: rows[0]
+        });
+    } catch (error) {
+        console.error("Error retrieving shipment details:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to retrieve shipment details",
+            error: error.message
+        });
+    }
+});
+
+
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
