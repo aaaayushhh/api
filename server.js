@@ -1492,7 +1492,11 @@ app.post('/upload-csv', (req, res) => {
         fs.createReadStream(filePath)
             .pipe(csvParser())
             .on('data', (row) => {
-                results.push(row);
+                // Trim all column names to handle any invisible characters or spaces
+                const sanitizedRow = Object.fromEntries(
+                    Object.entries(row).map(([key, val]) => [key.trim(), val])
+                );
+                results.push(sanitizedRow);
             })
             .on('end', async () => {
                 try {
@@ -1510,9 +1514,9 @@ app.post('/upload-csv', (req, res) => {
 
                         // Insert into database
                         const insertQuery = `
-                            INSERT INTO cornitos_master 
-                            (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                    INSERT INTO cornitos_master 
+                    (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
                         await connection.query(insertQuery, [
                             row['CATEGORY'],
