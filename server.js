@@ -454,6 +454,7 @@ app.get("/Get-data-for-enquiry-page", async (req, res) => {
                 cpe.OrderID,
                 cpe.UploadDate,
                 cpe.UserID,
+                cpe.IsConverted,
                 u.FirstName,
                 u.LastName,
                 u.EmailID,
