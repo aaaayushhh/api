@@ -653,7 +653,6 @@ app.post('/add-to-container', authMiddleware, async (req, res) => {
 module.exports = app;
 
 // Container Place Enquiry
-// Container Place Enquiry
 app.post('/container-place-enquiry', authMiddleware, async (req, res) => {
     const data = req.body;
 
@@ -1201,91 +1200,101 @@ const store = multer({
 
 app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     const { orderId, userId } = req.params;
-    let { ShippingStatus, BLNumber, ShippingLines, ETA, ETD, ProformaInvoiceNumber,
-        CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination } = req.body;
+    let {
+        ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
+        ProformaInvoiceNumber, CommercialInvoiceNumber,
+        CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
+    } = req.body;
 
     if (!userId) {
         return res.status(400).json({ message: 'UserID is required' });
     }
 
     try {
-        // Check if the OrderID belongs to the UserID
-        const [rows] = await pool.query(`
-            SELECT 1 FROM Orders WHERE OrderID = ? AND UserID = ?
-        `, [orderId, userId]);
-
+        const [rows] = await pool.query(`SELECT 1 FROM Orders WHERE OrderID = ? AND UserID = ?`, [orderId, userId]);
         if (!rows?.length) {
             return res.status(404).json({ message: 'Order not found for this user' });
         }
 
-        // Update order details to avoid duplicate entries
-        await pool.query(`
-            UPDATE OrderFiles SET 
-                ShippingStatus = IF(? = '', ShippingStatus, ?),
-                BLNumber = IF(? = '', BLNumber, ?),
-                ShippingLines = IF(? = '', ShippingLines, ?),
-                ETA = IF(? = '', ETA, ?),
-                ETD = IF(? = '', ETD, ?),
-                ProformaInvoiceNumber = IF(? = '', ProformaInvoiceNumber, ?),
-                CommercialInvoiceNumber = IF(? = '', CommercialInvoiceNumber, ?),
-                CommercialInvoiceDate = IF(? = '', CommercialInvoiceDate, ?),
-                ProformaInvoiceDate = IF(? = '', ProformaInvoiceDate, ?),
-                DischargePort = IF(? = '', DischargePort, ?),
-                FinalDestination = IF(? = '', FinalDestination, ?)
-            WHERE OrderID = ?
-        `, [
-            ShippingStatus, ShippingStatus,
-            BLNumber, BLNumber,
-            ShippingLines, ShippingLines,
-            ETA, ETA,
-            ETD, ETD,
-            ProformaInvoiceNumber, ProformaInvoiceNumber,
-            CommercialInvoiceNumber, CommercialInvoiceNumber,
-            CommercialInvoiceDate, CommercialInvoiceDate,
-            ProformaInvoiceDate, ProformaInvoiceDate,
-            DischargePort, DischargePort,
-            FinalDestination, FinalDestination,
-            orderId
-        ]);
+        // Check if shipment detail record already exists
+        const [existingShipment] = await pool.query(`
+            SELECT * FROM OrderFiles 
+            WHERE OrderID = ? AND UserID = ? AND DocumentType IS NULL
+        `, [orderId, userId]);
 
-        // Function to insert file records
-        const insertFileRecord = async (documentType, file) => {
-            const { originalname: fileName, path: filePath = '', mimetype: fileType = '' } = file;
-
-            console.log('Reading file from path:', filePath);
-
-            // Read file content as binary
-            const fileContent = await fsPromises.readFile(filePath);
-
+        if (existingShipment.length) {
+            // Update shipment details
             await pool.query(`
-                INSERT INTO OrderFiles 
-                (OrderID, UserID, DocumentType, FileName, FilePath, FileType, FileContent, UploadDate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-            `, [orderId, userId, documentType, fileName, filePath, fileType, fileContent]);
+                UPDATE OrderFiles SET 
+                    ShippingStatus = IF(? = '', ShippingStatus, ?),
+                    BLNumber = IF(? = '', BLNumber, ?),
+                    ShippingLines = IF(? = '', ShippingLines, ?),
+                    ETA = IF(? = '', ETA, ?),
+                    ETD = IF(? = '', ETD, ?),
+                    ProformaInvoiceNumber = IF(? = '', ProformaInvoiceNumber, ?),
+                    CommercialInvoiceNumber = IF(? = '', CommercialInvoiceNumber, ?),
+                    CommercialInvoiceDate = IF(? = '', CommercialInvoiceDate, ?),
+                    ProformaInvoiceDate = IF(? = '', ProformaInvoiceDate, ?),
+                    DischargePort = IF(? = '', DischargePort, ?),
+                    FinalDestination = IF(? = '', FinalDestination, ?)
+                WHERE OrderID = ? AND UserID = ? AND DocumentType IS NULL
+            `, [
+                ShippingStatus, ShippingStatus,
+                BLNumber, BLNumber,
+                ShippingLines, ShippingLines,
+                ETA, ETA,
+                ETD, ETD,
+                ProformaInvoiceNumber, ProformaInvoiceNumber,
+                CommercialInvoiceNumber, CommercialInvoiceNumber,
+                CommercialInvoiceDate, CommercialInvoiceDate,
+                ProformaInvoiceDate, ProformaInvoiceDate,
+                DischargePort, DischargePort,
+                FinalDestination, FinalDestination,
+                orderId, userId
+            ]);
+        } else {
+            // Insert new shipment row
+            await pool.query(`
+                INSERT INTO OrderFiles (
+                    OrderID, UserID, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
+                    ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate,
+                    ProformaInvoiceDate, DischargePort, FinalDestination, UploadDate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            `, [
+                orderId, userId, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
+                ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate,
+                ProformaInvoiceDate, DischargePort, FinalDestination
+            ]);
+        }
+
+        // File uploads
+        const insertFileRecord = async (documentType, file) => {
+            const { originalname, path, mimetype } = file;
+            const fileContent = await fsPromises.readFile(path);
+            await pool.query(`
+                INSERT INTO OrderFiles (
+                    OrderID, UserID, DocumentType, FileName, FilePath,
+                    FileType, FileContent, UploadDate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+            `, [orderId, userId, documentType, originalname, path, mimetype, fileContent]);
         };
 
-        // Check if files exist before inserting into OrderFiles
         const files = req.files || {};
         if (files.proformaFile) {
             await insertFileRecord('Proforma Invoice', files.proformaFile[0]);
         }
-
         if (Array.isArray(files.shippingDocuments)) {
-            await Promise.all(
-                files.shippingDocuments.map((file) =>
-                    insertFileRecord('Shipping Documents', file)
-                )
-            );
+            await Promise.all(files.shippingDocuments.map(file =>
+                insertFileRecord('Shipping Documents', file)
+            ));
         }
 
-        res.status(200).json({ message: 'Files uploaded and order details updated successfully' });
+        res.status(200).json({ message: 'Files uploaded and shipment details updated successfully' });
     } catch (error) {
-        console.error('Error uploading files:', error.message, error.stack);
-        res.status(500).json({ message: 'Internal Server Error. Please try again later.' });
+        console.error('Upload error:', error.message);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
-
-module.exports = app;
 
 
 app.get('/download-order-files-zip/:userId/:orderId', async (req, res) => {
@@ -1335,13 +1344,10 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
 
     try {
         const [rows] = await pool.query(`
-            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType, FileContent,
-                   UploadDate, ShippingStatus, BLNumber,
-                   ShippingLines, ETA, ETD,
-                   ProformaInvoiceNumber, CommercialInvoiceNumber, 
-                   CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
+            SELECT OrderID, UserID, DocumentType, FileName, FilePath, FileType,
+                   UploadDate
             FROM OrderFiles
-            WHERE UserID = ? AND OrderID = ?
+            WHERE UserID = ? AND OrderID = ? AND DocumentType IS NOT NULL
         `, [userId, orderId]);
 
         if (rows.length === 0) {
@@ -1370,11 +1376,11 @@ app.get('/get-shipment-details/:userId/:orderId', async (req, res) => {
 
     try {
         const [rows] = await pool.query(`
-            SELECT DISTINCT OrderID, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
-                   CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceDate,
-                   DischargePort, FinalDestination
+            SELECT OrderID, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
+                   CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceNumber,
+                   ProformaInvoiceDate, DischargePort, FinalDestination
             FROM OrderFiles
-            WHERE UserID = ? AND OrderID = ?
+            WHERE UserID = ? AND OrderID = ? AND DocumentType IS NULL
         `, [userId, orderId]);
 
         if (rows.length === 0) {
