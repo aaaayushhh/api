@@ -1785,12 +1785,13 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
                 continue; // Continue with next iteration if insert fails
             }
 
-            // Delete the enquiry after successful insertion
-            const deleteQuery = `
-                DELETE FROM container_place_enquiry
+            // Mark the enquiry data as converted
+            const updateQuery = `
+                UPDATE container_place_enquiry
+                SET IsConverted = 1
                 WHERE CPE_ID = ?
             `;
-            await connection.execute(deleteQuery, [cpeId]);
+            await connection.execute(updateQuery, [cpeId]);
         }
 
         await connection.commit(); // Commit the transaction
