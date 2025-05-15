@@ -2224,10 +2224,10 @@ app.post("/update-enquiry", async (req, res) => {
         for (const row of updatedRows) {
             const query = `
                 UPDATE container_place_enquiry SET  
-                RatePerUnitUSD = ?, 
-                RatePerCaseUSD = ?, 
-                TotalRateInUSDFobIndia = ?, 
-                TotalNetWeight = ?, 
+                    RatePerUnitUSD = ?, 
+                    RatePerCaseUSD = ?, 
+                    TotalRateInUSDFobIndia = ?, 
+                    TotalNetWeight = ?
                 WHERE CPE_ID = ?;
             `;
 
