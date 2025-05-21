@@ -1050,7 +1050,7 @@ app.post("/loginuser", async (req, res) => {
         }
 
         const token = jwt.sign({ UserID: user.UserID, EmailID: user.EmailID }, process.env.SECRET_KEY, {
-            expiresIn: '24h' // Token expiration time
+            // expiresIn: '24h' // Token expiration time
         });
 
         res.json({
