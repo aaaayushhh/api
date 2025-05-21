@@ -447,6 +447,37 @@ app.get("/Get-data-for-user-side-enquiry-page/:userId", async (req, res) => {
     }
 });
 
+
+app.get("/Get-data-for-user-side-enquiry-page-user-dashboard/:userId", async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const [rows] = await pool.query(`
+            SELECT DISTINCT
+                cpe.OrderID,
+                cpe.UploadDate,
+                cpe.UserID,
+                u.FirstName,
+                u.LastName,
+                u.EmailID,
+                u.CompanyName
+            FROM
+                container_place_enquiry cpe
+            JOIN
+                users u ON cpe.UserID = u.UserID
+            WHERE
+                cpe.UserID = ?
+            ORDER BY
+                UploadDate DESC
+            LIMIT 5
+        `, [userId]);
+        res.json({ msg: "Data Fetched Successfully", data: rows });
+    } catch (err) {
+        console.error("Query Failed:", err);
+        res.status(500).json({ msg: "Error Fetching Data", error: err.message });
+    }
+});
+
+
 app.get("/Get-data-for-enquiry-page", async (req, res) => {
     try {
         const [rows] = await pool.query(`
