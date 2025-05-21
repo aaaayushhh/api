@@ -1939,7 +1939,7 @@ app.get('/Get-orders-data-user-side-user-dashboard/:userId', async (req, res) =>
                 o.CartonQty,
                 o.ProductID,
                 o.UploadDate,
-                o.ProformaInvoiceNumber,
+                ofiles.ProformaInvoiceNumber,
                 cm.PRODUCT_DESCRIPTION,
                 cm.SKU_CODE,
                 cm.CATEGORY,
