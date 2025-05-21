@@ -2234,23 +2234,21 @@ module.exports = app;
 
 
 app.post("/send-enquiry-update-email", async (req, res) => {
-    const { email } = req.body; // Email ID of the user
+    const { email } = req.body;
     const adminEmail = "ayushsshah04@gmail.com"; // Hardcoded admin email
 
     if (!email) {
         return res.status(400).json({ message: "User email is required" });
     }
 
-    // Configure your email transporter (use your SMTP credentials)
     let transporter = nodemailer.createTransport({
-        service: "gmail",  // You can use your email provider (Gmail, Outlook, etc.)
+        service: "gmail",
         auth: {
-            user: "ayushsshah04@gmail.com",  // Replace with your email
-            pass: "wlfy yekg dvwq aqcq",  // Replace with your email app password
+            user: "ayushsshah04@gmail.com",
+            pass: "wlfy yekg dvwq aqcq",  // App password
         },
     });
 
-    // Email for the user
     let userMailOptions = {
         from: "ayushsshah04@gmail.com",
         to: email,
@@ -2258,12 +2256,18 @@ app.post("/send-enquiry-update-email", async (req, res) => {
         text: `Dear Customer,\n\nYour order enquiry has been updated successfully as per your requirement. Please let us know if any query persists.\n\nBest Regards,\nEximtrac`,
     };
 
+    // ✅ Add this block to define the missing variable
+    let adminMailOptions = {
+        from: "ayushsshah04@gmail.com",
+        to: adminEmail,
+        subject: "User Enquiry Updated",
+        text: `The enquiry for user ${email} has been updated and a notification email has been sent.`,
+    };
+
     try {
-        // Send email to the user
         let userEmailInfo = await transporter.sendMail(userMailOptions);
         console.log("User Email sent: ", userEmailInfo.response);
 
-        // Send email to the admin
         let adminEmailInfo = await transporter.sendMail(adminMailOptions);
         console.log("Admin Email sent: ", adminEmailInfo.response);
 
@@ -2273,8 +2277,6 @@ app.post("/send-enquiry-update-email", async (req, res) => {
         res.status(500).json({ message: "Failed to send emails", error: error.toString() });
     }
 });
-
-module.exports = app;
 
 
 
