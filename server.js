@@ -1927,6 +1927,59 @@ app.get('/Get-orders-data-user-side/:userId', async (req, res) => {
     }
 });
 
+
+app.get('/Get-orders-data-user-side-user-dashboard/:userId', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // SQL query with parameterized input for fetching orders specific to the user
+        const query = `
+            SELECT 
+                o.OrderID,
+                o.CartonQty,
+                o.ProductID,
+                o.UploadDate,
+                o.ProformaInvoiceNumber,
+                cm.PRODUCT_DESCRIPTION,
+                cm.SKU_CODE,
+                cm.CATEGORY,
+                cm.BRAND,
+                cm.SUB_CATEGORY,
+                cm.UNIT,
+                cm.UNIT_PER_CTN,
+                cm.WEIGHT_PER_PKT_GRAMS,
+                u.EmailID,
+                u.UserID,
+                u.FirstName,
+                u.LastName,
+                u.CompanyName,
+                GROUP_CONCAT(DISTINCT ofiles.ShippingStatus SEPARATOR ', ') AS ShippingStatus
+            FROM 
+                Orders o
+            INNER JOIN 
+                cornitos_master cm ON o.ProductID = cm.ID
+            INNER JOIN 
+                users u ON o.UserID = u.UserID
+            LEFT JOIN 
+                OrderFiles ofiles ON o.OrderID = ofiles.OrderID
+            WHERE 
+                o.UserID = ?
+            GROUP BY 
+                o.OrderID
+            ORDER BY 
+                o.UploadDate DESC
+            LIMIT 5
+            `;
+
+        const [rows] = await pool.query(query, [userId]);
+        res.status(200).json({ msg: 'Data Fetched Successfully', data: rows });
+    } catch (err) {
+        console.error('Error fetching orders:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    }
+});
+
+
 // API to Get Orders Data for Admin Dashboard
 app.get('/Get-orders-for-admin-dash', async (req, res) => {
     try {
