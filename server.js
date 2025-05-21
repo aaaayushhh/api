@@ -1863,7 +1863,16 @@ app.get('/Get-orders', async (req, res) => {
                 ofiles.ShippingStatus, ofiles.ProformaInvoiceNumber
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
-            LEFT JOIN OrderFiles ofiles ON o.OrderID = ofiles.OrderID
+            LEFT JOIN (
+                SELECT of1.*
+                FROM OrderFiles of1
+                INNER JOIN (
+                    SELECT OrderID, MAX(UploadDate) AS MaxDate
+                    FROM OrderFiles
+                    GROUP BY OrderID
+                ) of2
+                ON of1.OrderID = of2.OrderID AND of1.UploadDate = of2.MaxDate
+            ) ofiles ON o.OrderID = ofiles.OrderID
             ORDER BY o.UploadDate DESC
         `;
 
