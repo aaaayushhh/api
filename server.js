@@ -1379,6 +1379,7 @@ app.get('/get-files-data/:userId/:orderId', async (req, res) => {
                    UploadDate
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ? AND DocumentType IS NOT NULL
+            ORDER BY UploadDate DESC
         `, [userId, orderId]);
 
         if (rows.length === 0) {
