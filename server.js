@@ -2477,16 +2477,24 @@ app.post("/upload-images", imageupload.array("images"), async (req, res) => {
 
 
 
+// Example using Express
 app.delete('/admin-products-delete/:SKU_CODE', async (req, res) => {
+    const { SKU_CODE } = req.params;
     try {
-        const { SKU_CODE } = req.params;
-        await db.query('DELETE FROM cornitos_master WHERE SKU_CODE = ?', [SKU_CODE]);
-        res.sendStatus(200);
+        // Replace this with your DB logic
+        const result = await db.query('DELETE FROM cornitos_master WHERE SKU_CODE = ?', [SKU_CODE]);
+
+        if (result.affectedRows > 0) {
+            res.status(200).send({ message: 'Product deleted successfully' });
+        } else {
+            res.status(404).send({ message: 'Product not found' });
+        }
     } catch (err) {
         console.error(err);
-        res.sendStatus(500);
+        res.status(500).send({ message: 'Server error' });
     }
 });
+
 
 app.post('/admin-products-delete-multiple', async (req, res) => {
     try {
