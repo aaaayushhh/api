@@ -227,11 +227,18 @@ testConnection();
 // Define routes
 app.get("/GetAllProducts", async (req, res) => {
     try {
-        const [products] = await pool.execute("SELECT * FROM cornitos_master");
+        let page = parseInt(req.query.page) || 1;
+        let limit = parseInt(req.query.limit) || 10;
+        let offset = (page - 1) * limit;
 
-        console.log("Fetched Products:", products); // ✅ Debugging
+        const [totalRows] = await pool.execute("SELECT COUNT(*) AS count FROM cornitos_master");
+        const totalCount = totalRows[0].count;
 
-        // Fetch images for each product and attach them
+        const [products] = await pool.execute(
+            "SELECT * FROM cornitos_master LIMIT ? OFFSET ?",
+            [limit, offset]
+        );
+
         const productsWithImages = await Promise.all(
             products.map(async (product) => {
                 const [images] = await pool.execute(
@@ -246,7 +253,12 @@ app.get("/GetAllProducts", async (req, res) => {
             })
         );
 
-        res.json({ data: productsWithImages });
+        res.json({
+            data: productsWithImages,
+            totalCount,
+            currentPage: page,
+            totalPages: Math.ceil(totalCount / limit)
+        });
     } catch (error) {
         console.error("Error fetching products:", error);
         res.status(500).json({ error: "Failed to fetch products", details: error.message });
