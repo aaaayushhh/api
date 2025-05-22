@@ -2477,6 +2477,34 @@ app.post("/upload-images", imageupload.array("images"), async (req, res) => {
 
 
 
+app.delete('/admin-products-delete/:SKU_CODE', async (req, res) => {
+    try {
+        const { SKU_CODE } = req.params;
+        await db.query('DELETE FROM cornitos_master WHERE SKU_CODE = ?', [SKU_CODE]);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
+});
+
+app.post('/admin-products-delete-multiple', async (req, res) => {
+    try {
+        const { SKU_CODE } = req.body;
+        if (!Array.isArray(SKU_CODE) || SKU_CODE.length === 0) {
+            return res.status(400).json({ message: 'SKU_CODE must be a non-empty array' });
+        }
+
+        const placeholders = SKU_CODE.map(() => '?').join(',');
+        await db.query(`DELETE FROM cornitos_master WHERE SKU_CODE IN (${placeholders})`, SKU_CODE);
+        res.sendStatus(200);
+    } catch (err) {
+        console.error(err);
+        res.sendStatus(500);
+    }
+});
+
+
 
 // Set the server to listen on PORT
 const PORT = process.env.PORT || 3000;
