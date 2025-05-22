@@ -228,7 +228,7 @@ testConnection();
 app.get("/GetAllProducts", async (req, res) => {
     try {
         let page = parseInt(req.query.page) || 1;
-        let limit = parseInt(req.query.limit) || 10;
+        let limit = parseInt(req.query.limit) || 50;
         let offset = (page - 1) * limit;
 
         const [totalRows] = await pool.execute("SELECT COUNT(*) AS count FROM cornitos_master");
