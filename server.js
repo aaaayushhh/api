@@ -1901,89 +1901,69 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
-            console.log(`Processing CPE_ID: ${cpeId}`);
+            // Check if CPE_ID already exists in Orders
+            const checkQuery = `
+                SELECT COUNT(*) AS count 
+                FROM Orders 
+                WHERE CPE_ID = ?
+            `;
+            const [checkResult] = await connection.execute(checkQuery, [cpeId]);
 
-            // Check if this CPE_ID already exists in Orders to prevent duplicates
-            const [existingRows] = await connection.execute(
-                `SELECT COUNT(*) AS count FROM Orders WHERE CPE_ID = ?`,
-                [cpeId]
-            );
-            if (existingRows[0].count > 0) {
-                console.log(`CPE_ID ${cpeId} already exists in Orders, skipping...`);
+            if (checkResult[0].count > 0) {
+                continue; // Skip if the CPE_ID already exists
+            }
+
+            // Verify the data before inserting
+            const selectQuery = `
+                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
+                FROM container_place_enquiry
+                WHERE CPE_ID = ?
+            `;
+            const [selectResult] = await connection.execute(selectQuery, [cpeId]);
+
+            // Check if the result has valid data
+            if (selectResult.length === 0) {
+                console.log('No data found for CPE_ID:', cpeId);
                 continue;
             }
 
-            // Get all enquiry rows for this CPE_ID
-            const [enquiryRows] = await connection.execute(
-                `SELECT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
-                 FROM container_place_enquiry WHERE CPE_ID = ?`,
-                [cpeId]
-            );
-
-            if (enquiryRows.length === 0) {
-                console.log(`No enquiry data found for CPE_ID: ${cpeId}, skipping.`);
-                continue;
-            }
-
-            // Insert each row into Orders
-            for (const row of enquiryRows) {
-                try {
-                    await connection.execute(
-                        `INSERT INTO Orders 
-                            (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                        [
-                            row.OrderID,
-                            row.CPE_ID,
-                            row.CartonQty,
-                            row.ProductID,
-                            row.UserID,
-                            row.UploadDate,
-                            row.TotalQty,
-                            row.RatePerUnitUsd,
-                            row.RatePerCaseUSD,
-                            row.TotalRateInUSDFobIndia,
-                            row.TotalNetWeight,
-                        ]
-                    );
-                    console.log(`Inserted OrderID ${row.OrderID} for CPE_ID ${cpeId}`);
-                } catch (insertErr) {
-                    console.error(`Insert failed for OrderID ${row.OrderID} with error:`, insertErr);
-                    // Throw to rollback entire transaction on insert failure
-                    throw insertErr;
-                }
-            }
-
-            // After successful insertion of all rows for this CPE_ID, delete enquiry rows
+            // Insert the data into the Orders table using CPE_ID
+            const insertQuery = `
+                INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
+                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
+                FROM container_place_enquiry
+                WHERE CPE_ID = ?
+            `;
             try {
-                await connection.execute(
-                    `DELETE FROM container_place_enquiry WHERE CPE_ID = ?`,
-                    [cpeId]
-                );
-                console.log(`Deleted enquiry rows for CPE_ID: ${cpeId}`);
-            } catch (deleteErr) {
-                console.error(`Delete failed for CPE_ID ${cpeId} with error:`, deleteErr);
-                // Throw to rollback entire transaction on delete failure
-                throw deleteErr;
+                await connection.execute(insertQuery, [cpeId]);
+            } catch (err) {
+                console.error('Error during INSERT query:', err);
+                continue; // Continue with next iteration if insert fails
             }
+
+            // Mark the enquiry data as converted
+            const updateQuery = `
+                UPDATE container_place_enquiry
+                SET IsConverted = 1
+                WHERE CPE_ID = ?
+            `;
+            await connection.execute(updateQuery, [cpeId]);
         }
 
-        await connection.commit();
-        console.log('Transaction committed successfully.');
+        await connection.commit(); // Commit the transaction
         res.status(200).json({ message: 'Selected enquiries successfully converted to orders.' });
-
     } catch (err) {
         if (connection) {
-            await connection.rollback();
-            console.error('Transaction rolled back due to error:', err);
+            await connection.rollback(); // Rollback in case of error
         }
+        console.error('Error during transaction:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     } finally {
-        if (connection) connection.release();
+        if (connection) {
+            connection.release(); // Release the connection back to the pool
+        }
     }
 });
-
-
 
 // API to Get Orders Data
 app.get('/Get-orders', async (req, res) => {
