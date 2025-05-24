@@ -985,7 +985,7 @@ app.put("/update-product", async (req, res) => {
             `UPDATE cornitos_master SET 
                 SKU_CODE = ?, 
                 PRODUCT_DESCRIPTION = ?, 
-                UNIT_PER_CARTON = ?, 
+                UNIT_PER_CTN = ?, 
                 UNIT = ?, 
                 WEIGHT_PER_PKT_GRAMS = ?, 
                 UNIT_MEASUREMENT_TYPE = ?, 
@@ -994,6 +994,7 @@ app.put("/update-product", async (req, res) => {
                 BRAND = ?
             WHERE SKU_CODE = ?`,
             [
+                oldSKUCode,
                 SKUCode,
                 productName,
                 unitPerCarton,
@@ -1003,7 +1004,6 @@ app.put("/update-product", async (req, res) => {
                 categoryName,
                 subCategoryName,
                 brandName,
-                oldSKUCode
             ]
         );
 
