@@ -1901,11 +1901,10 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
-            // Select all rows for the CPE_ID from enquiry table
+            // Fetch enquiry rows for CPE_ID
             const [enquiryRows] = await connection.execute(
                 `SELECT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
-                 FROM container_place_enquiry
-                 WHERE CPE_ID = ?`,
+                 FROM container_place_enquiry WHERE CPE_ID = ?`,
                 [cpeId]
             );
 
@@ -1914,7 +1913,7 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
                 continue;
             }
 
-            // Filter out rows with OrderID that already exist in Orders to avoid duplicate primary key error
+            // Check which OrderIDs already exist in Orders
             const orderIDs = enquiryRows.map(row => row.OrderID);
             const placeholders = orderIDs.map(() => '?').join(',');
             const [existingOrders] = await connection.execute(
@@ -1924,37 +1923,35 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
             const existingOrderIDs = new Set(existingOrders.map(row => row.OrderID));
 
-            // Filter only new rows to insert
+            // Filter new rows only
             const rowsToInsert = enquiryRows.filter(row => !existingOrderIDs.has(row.OrderID));
 
             if (rowsToInsert.length === 0) {
-                console.log(`All orders for CPE_ID: ${cpeId} already exist in Orders table.`);
-                // Since all orders exist, still delete from enquiry if you want to consider them converted
+                console.log(`All orders for CPE_ID: ${cpeId} already exist.`);
+                // Delete enquiries since they are duplicates, optional:
                 await connection.execute(`DELETE FROM container_place_enquiry WHERE CPE_ID = ?`, [cpeId]);
                 continue;
             }
 
-            // Insert new rows one by one or batch insert (better)
+            // Insert all new rows sequentially
             for (const row of rowsToInsert) {
-                const insertQuery = `
-                    INSERT INTO Orders 
+                await connection.execute(
+                    `INSERT INTO Orders 
                     (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `;
-                const values = [
-                    row.OrderID, row.CPE_ID, row.CartonQty, row.ProductID, row.UserID, row.UploadDate,
-                    row.TotalQty, row.RatePerUnitUsd, row.RatePerCaseUSD, row.TotalRateInUSDFobIndia, row.TotalNetWeight
-                ];
-                await connection.execute(insertQuery, values);
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        row.OrderID, row.CPE_ID, row.CartonQty, row.ProductID, row.UserID, row.UploadDate,
+                        row.TotalQty, row.RatePerUnitUsd, row.RatePerCaseUSD, row.TotalRateInUSDFobIndia, row.TotalNetWeight
+                    ]
+                );
             }
 
-            // Delete from enquiry after insertion
+            // **Only after all inserts succeed, delete from enquiry**
             await connection.execute(`DELETE FROM container_place_enquiry WHERE CPE_ID = ?`, [cpeId]);
         }
 
         await connection.commit();
         res.status(200).json({ message: 'Selected enquiries successfully converted to orders.' });
-
     } catch (err) {
         if (connection) await connection.rollback();
         console.error('Error during transaction:', err);
@@ -1963,6 +1960,8 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         if (connection) connection.release();
     }
 });
+
+
 
 // API to Get Orders Data
 app.get('/Get-orders', async (req, res) => {
