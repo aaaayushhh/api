@@ -232,24 +232,20 @@ app.get("/GetAllProducts", async (req, res) => {
         const limit = parseInt(req.query.limit) || 50;
         const offset = (page - 1) * limit;
 
-        // Get total count
-        const [totalRows] = await pool.execute("SELECT COUNT(*) AS count FROM cornitos_master");
-        const totalCount = totalRows[0].count;
+        const [countResult] = await pool.query("SELECT COUNT(*) AS count FROM cornitos_master");
+        const totalCount = countResult[0].count;
 
-        // Get paginated products
-        const [products] = await pool.execute(
-            "SELECT * FROM cornitos_master LIMIT ? OFFSET ?",
+        const [result] = await pool.query(
+            `SELECT * FROM cornitos_master LIMIT ? OFFSET ?`,
             [limit, offset]
         );
 
-        // Attach images
         const productsWithImages = await Promise.all(
-            products.map(async (product) => {
-                const [images] = await pool.execute(
+            result.map(async (product) => {
+                const [images] = await pool.query(
                     "SELECT TO_BASE64(image_data) AS image_base64 FROM product_images WHERE SKU_CODE = ?",
                     [product.SKU_CODE]
                 );
-
                 return {
                     ...product,
                     image_urls: images.map((img) => `data:image/jpeg;base64,${img.image_base64}`),
@@ -257,16 +253,16 @@ app.get("/GetAllProducts", async (req, res) => {
             })
         );
 
-        // Return paginated response
         res.json({
             data: productsWithImages,
             totalCount,
             currentPage: page,
-            totalPages: Math.ceil(totalCount / limit)
+            totalPages: Math.ceil(totalCount / limit),
         });
+
     } catch (error) {
-        console.error("Error fetching products:", error);
-        res.status(500).json({ error: "Failed to fetch products", details: error.message });
+        console.error("Error fetching data:", error);
+        res.status(500).json({ error: "Error fetching data", details: error.message });
     }
 });
 
