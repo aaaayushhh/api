@@ -306,8 +306,8 @@ app.get('/GetAllProducts', async (req, res) => {
     queryParams.push(parseInt(offset), parseInt(limit));
 
     try {
-        const [products] = await db.query(baseQuery, queryParams);
-        const [countResult] = await db.query(countQuery, queryParams.slice(0, queryParams.length - 2)); // remove LIMIT params
+        const [products] = await pool.query(baseQuery, queryParams);
+        const [countResult] = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2)); // remove LIMIT params
         const total = countResult[0].total;
         const totalPages = Math.ceil(total / limit);
 
