@@ -226,45 +226,98 @@ testConnection();
 
 // Define routes
 // ✅ /GetAllProducts endpoint with pagination
-app.get("/GetAllProducts", async (req, res) => {
+// app.get("/GetAllProducts", async (req, res) => {
+//     try {
+//         const page = parseInt(req.query.page) || 1;
+//         const limit = parseInt(req.query.limit) || 50;
+//         const offset = (page - 1) * limit;
+
+//         const [countResult] = await pool.query("SELECT COUNT(*) AS count FROM cornitos_master");
+//         const totalCount = countResult[0].count;
+
+//         const [result] = await pool.query(
+//             `SELECT * FROM cornitos_master LIMIT ? OFFSET ?`,
+//             [limit, offset]
+//         );
+
+//         const productsWithImages = await Promise.all(
+//             result.map(async (product) => {
+//                 const [images] = await pool.query(
+//                     "SELECT TO_BASE64(image_data) AS image_base64 FROM product_images WHERE SKU_CODE = ?",
+//                     [product.SKU_CODE]
+//                 );
+//                 return {
+//                     ...product,
+//                     image_urls: images.map((img) => `data:image/jpeg;base64,${img.image_base64}`),
+//                 };
+//             })
+//         );
+
+//         res.json({
+//             data: productsWithImages,
+//             totalCount,
+//             currentPage: page,
+//             totalPages: Math.ceil(totalCount / limit),
+//         });
+
+//     } catch (error) {
+//         console.error("Error fetching data:", error);
+//         res.status(500).json({ error: "Error fetching data", details: error.message });
+//     }
+// });
+
+
+app.get('/GetAllProducts', async (req, res) => {
+    const { page = 1, limit = 50, category, subCategory, brand, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    let baseQuery = `SELECT * FROM products WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) as total FROM products WHERE 1=1`;
+    const queryParams = [];
+
+    // Dynamic filters
+    if (category) {
+        baseQuery += ` AND CATEGORY = ?`;
+        countQuery += ` AND CATEGORY = ?`;
+        queryParams.push(category);
+    }
+
+    if (subCategory) {
+        baseQuery += ` AND SUB_CATEGORY = ?`;
+        countQuery += ` AND SUB_CATEGORY = ?`;
+        queryParams.push(subCategory);
+    }
+
+    if (brand) {
+        baseQuery += ` AND BRAND = ?`;
+        countQuery += ` AND BRAND = ?`;
+        queryParams.push(brand);
+    }
+
+    if (search) {
+        baseQuery += ` AND (PRODUCT_NAME LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
+        countQuery += ` AND (PRODUCT_NAME LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
+        const s = `%${search}%`;
+        queryParams.push(s, s, s, s);
+    }
+
+    // Pagination
+    baseQuery += ` LIMIT ?, ?`;
+    queryParams.push(parseInt(offset), parseInt(limit));
+
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
-        const offset = (page - 1) * limit;
+        const [products] = await db.query(baseQuery, queryParams);
+        const [countResult] = await db.query(countQuery, queryParams.slice(0, queryParams.length - 2)); // remove LIMIT params
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limit);
 
-        const [countResult] = await pool.query("SELECT COUNT(*) AS count FROM cornitos_master");
-        const totalCount = countResult[0].count;
-
-        const [result] = await pool.query(
-            `SELECT * FROM cornitos_master LIMIT ? OFFSET ?`,
-            [limit, offset]
-        );
-
-        const productsWithImages = await Promise.all(
-            result.map(async (product) => {
-                const [images] = await pool.query(
-                    "SELECT TO_BASE64(image_data) AS image_base64 FROM product_images WHERE SKU_CODE = ?",
-                    [product.SKU_CODE]
-                );
-                return {
-                    ...product,
-                    image_urls: images.map((img) => `data:image/jpeg;base64,${img.image_base64}`),
-                };
-            })
-        );
-
-        res.json({
-            data: productsWithImages,
-            totalCount,
-            currentPage: page,
-            totalPages: Math.ceil(totalCount / limit),
-        });
-
-    } catch (error) {
-        console.error("Error fetching data:", error);
-        res.status(500).json({ error: "Error fetching data", details: error.message });
+        res.json({ data: products, totalPages });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
+
 
 
 app.get("/GetCategoryandSubCategory", async (req, res) => {
