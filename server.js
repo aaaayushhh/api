@@ -271,8 +271,8 @@ app.get('/GetAllProducts', async (req, res) => {
     const { page = 1, limit = 50, category, subCategory, brand, search } = req.query;
     const offset = (page - 1) * limit;
 
-    let baseQuery = `SELECT * FROM products WHERE 1=1`;
-    let countQuery = `SELECT COUNT(*) as total FROM products WHERE 1=1`;
+    let baseQuery = `SELECT * FROM cornitos_master WHERE 1=1`;
+    let countQuery = `SELECT COUNT(*) as total FROM cornitos_master WHERE 1=1`;
     const queryParams = [];
 
     // Dynamic filters
@@ -295,8 +295,8 @@ app.get('/GetAllProducts', async (req, res) => {
     }
 
     if (search) {
-        baseQuery += ` AND (PRODUCT_NAME LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
-        countQuery += ` AND (PRODUCT_NAME LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
+        baseQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
+        countQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
         const s = `%${search}%`;
         queryParams.push(s, s, s, s);
     }
