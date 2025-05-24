@@ -1126,10 +1126,16 @@ app.post("/signup", async (req, res) => {
     const { EmailID, Password } = req.body;
 
     try {
-        const query = `
-            INSERT INTO users (EmailID, Password) VALUES (?, ?)
-        `;
-        await pool.query(query, [EmailID, Password]); // Use await here
+        // 1. Check if EmailID already exists
+        const [existing] = await pool.query("SELECT * FROM users WHERE EmailID = ?", [EmailID]);
+
+        if (existing.length > 0) {
+            return res.status(409).json({ message: "This email ID is already registered. Please use a different one." });
+        }
+
+        // 2. Insert new user
+        await pool.query("INSERT INTO users (EmailID, Password) VALUES (?, ?)", [EmailID, Password]);
+
         res.status(201).json({ message: "User registered successfully" });
     } catch (err) {
         console.error(err.message);
