@@ -275,25 +275,22 @@ app.get('/GetAllProducts', async (req, res) => {
     let countQuery = `SELECT COUNT(*) as total FROM cornitos_master WHERE 1=1`;
     const queryParams = [];
 
-    // Dynamic filters
+    // Filters
     if (category) {
         baseQuery += ` AND CATEGORY = ?`;
         countQuery += ` AND CATEGORY = ?`;
         queryParams.push(category);
     }
-
     if (subCategory) {
         baseQuery += ` AND SUB_CATEGORY = ?`;
         countQuery += ` AND SUB_CATEGORY = ?`;
         queryParams.push(subCategory);
     }
-
     if (brand) {
         baseQuery += ` AND BRAND = ?`;
         countQuery += ` AND BRAND = ?`;
         queryParams.push(brand);
     }
-
     if (search) {
         baseQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
         countQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
@@ -307,11 +304,24 @@ app.get('/GetAllProducts', async (req, res) => {
 
     try {
         const [products] = await pool.query(baseQuery, queryParams);
-        const [countResult] = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2)); // remove LIMIT params
+        const [countResult] = await pool.query(countQuery, queryParams.slice(0, queryParams.length - 2)); // exclude limit, offset
         const total = countResult[0].total;
         const totalPages = Math.ceil(total / limit);
 
-        res.json({ data: products, totalPages });
+        // Add images for each product
+        const productsWithImages = await Promise.all(products.map(async (product) => {
+            const [images] = await pool.query(
+                "SELECT TO_BASE64(image_data) AS image_base64 FROM product_images WHERE SKU_CODE = ?",
+                [product.SKU_CODE]
+            );
+            return {
+                ...product,
+                image_urls: images.map(img => `data:image/jpeg;base64,${img.image_base64}`)
+            };
+        }));
+
+        res.json({ data: productsWithImages, totalPages, currentPage: parseInt(page) });
+
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Internal server error' });
