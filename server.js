@@ -2578,7 +2578,7 @@ app.delete('/admin-products-delete/:SKU_CODE', async (req, res) => {
     const { SKU_CODE } = req.params;
     try {
         // Replace this with your DB logic
-        const result = await db.query('DELETE FROM cornitos_master WHERE SKU_CODE = ?', [SKU_CODE]);
+        const result = await pool.query('DELETE FROM cornitos_master WHERE SKU_CODE = ?', [SKU_CODE]);
 
         if (result.affectedRows > 0) {
             res.status(200).send({ message: 'Product deleted successfully' });
