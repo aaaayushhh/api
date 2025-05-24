@@ -1901,73 +1901,66 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
-            // Fetch all enquiry rows for this cpeId
-            const selectQuery = `
-                SELECT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
-                FROM container_place_enquiry
-                WHERE CPE_ID = ?
-            `;
-            const [enquiryRows] = await connection.execute(selectQuery, [cpeId]);
+            // Select all rows for the CPE_ID from enquiry table
+            const [enquiryRows] = await connection.execute(
+                `SELECT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
+                 FROM container_place_enquiry
+                 WHERE CPE_ID = ?`,
+                [cpeId]
+            );
 
             if (enquiryRows.length === 0) {
-                console.log(`No enquiry data found for CPE_ID: ${cpeId}`);
+                console.log(`No enquiry found for CPE_ID: ${cpeId}`);
                 continue;
             }
 
-            for (const row of enquiryRows) {
-                // Check if this exact order item already exists in Orders
-                const checkQuery = `
-                    SELECT COUNT(*) AS count 
-                    FROM Orders 
-                    WHERE CPE_ID = ? AND ProductID = ?
-                `;
-                const [checkResult] = await connection.execute(checkQuery, [row.CPE_ID, row.ProductID]);
+            // Filter out rows with OrderID that already exist in Orders to avoid duplicate primary key error
+            const orderIDs = enquiryRows.map(row => row.OrderID);
+            const placeholders = orderIDs.map(() => '?').join(',');
+            const [existingOrders] = await connection.execute(
+                `SELECT OrderID FROM Orders WHERE OrderID IN (${placeholders})`,
+                orderIDs
+            );
 
-                if (checkResult[0].count > 0) {
-                    // Skip if this item already exists in Orders
-                    continue;
-                }
+            const existingOrderIDs = new Set(existingOrders.map(row => row.OrderID));
 
-                // Insert this single item into Orders
-                const insertQuery = `
-                    INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `;
-                await connection.execute(insertQuery, [
-                    row.OrderID,
-                    row.CPE_ID,
-                    row.CartonQty,
-                    row.ProductID,
-                    row.UserID,
-                    row.UploadDate,
-                    row.TotalQty,
-                    row.RatePerUnitUsd,
-                    row.RatePerCaseUSD,
-                    row.TotalRateInUSDFobIndia,
-                    row.TotalNetWeight
-                ]);
+            // Filter only new rows to insert
+            const rowsToInsert = enquiryRows.filter(row => !existingOrderIDs.has(row.OrderID));
+
+            if (rowsToInsert.length === 0) {
+                console.log(`All orders for CPE_ID: ${cpeId} already exist in Orders table.`);
+                // Since all orders exist, still delete from enquiry if you want to consider them converted
+                await connection.execute(`DELETE FROM container_place_enquiry WHERE CPE_ID = ?`, [cpeId]);
+                continue;
             }
 
-            // After all items inserted for this CPE_ID, delete all related enquiry rows
-            const deleteQuery = `
-                DELETE FROM container_place_enquiry
-                WHERE CPE_ID = ?
-            `;
-            await connection.execute(deleteQuery, [cpeId]);
+            // Insert new rows one by one or batch insert (better)
+            for (const row of rowsToInsert) {
+                const insertQuery = `
+                    INSERT INTO Orders 
+                    (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
+                const values = [
+                    row.OrderID, row.CPE_ID, row.CartonQty, row.ProductID, row.UserID, row.UploadDate,
+                    row.TotalQty, row.RatePerUnitUsd, row.RatePerCaseUSD, row.TotalRateInUSDFobIndia, row.TotalNetWeight
+                ];
+                await connection.execute(insertQuery, values);
+            }
+
+            // Delete from enquiry after insertion
+            await connection.execute(`DELETE FROM container_place_enquiry WHERE CPE_ID = ?`, [cpeId]);
         }
 
-        await connection.commit(); // Commit the transaction
+        await connection.commit();
         res.status(200).json({ message: 'Selected enquiries successfully converted to orders.' });
+
     } catch (err) {
-        if (connection) {
-            await connection.rollback(); // Rollback in case of error
-        }
+        if (connection) await connection.rollback();
         console.error('Error during transaction:', err);
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     } finally {
-        if (connection) {
-            connection.release(); // Release the connection back to the pool
-        }
+        if (connection) connection.release();
     }
 });
 
