@@ -994,7 +994,6 @@ app.put("/update-product", async (req, res) => {
                 BRAND = ?
             WHERE SKU_CODE = ?`,
             [
-                oldSKUCode,
                 SKUCode,
                 productName,
                 unitPerCarton,
@@ -1004,6 +1003,7 @@ app.put("/update-product", async (req, res) => {
                 categoryName,
                 subCategoryName,
                 brandName,
+                oldSKUCode
             ]
         );
 
