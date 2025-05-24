@@ -2601,7 +2601,7 @@ app.post('/admin-products-delete-multiple', async (req, res) => {
 
         const placeholders = SKU_CODE.map(() => '?').join(',');
         await db.query(`DELETE FROM cornitos_master WHERE SKU_CODE IN (${placeholders})`, SKU_CODE);
-        res.sendStatus(200);
+        res.sendStatus(200).json({ message: 'Deleted successfully' });
     } catch (err) {
         console.error(err);
         res.sendStatus(500);
