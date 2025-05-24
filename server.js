@@ -1901,7 +1901,19 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
-            // Fetch enquiry rows for CPE_ID
+            console.log(`Processing CPE_ID: ${cpeId}`);
+
+            // Check if this CPE_ID already exists in Orders to prevent duplicates
+            const [existingRows] = await connection.execute(
+                `SELECT COUNT(*) AS count FROM Orders WHERE CPE_ID = ?`,
+                [cpeId]
+            );
+            if (existingRows[0].count > 0) {
+                console.log(`CPE_ID ${cpeId} already exists in Orders, skipping...`);
+                continue;
+            }
+
+            // Get all enquiry rows for this CPE_ID
             const [enquiryRows] = await connection.execute(
                 `SELECT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
                  FROM container_place_enquiry WHERE CPE_ID = ?`,
@@ -1909,52 +1921,62 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
             );
 
             if (enquiryRows.length === 0) {
-                console.log(`No enquiry found for CPE_ID: ${cpeId}`);
+                console.log(`No enquiry data found for CPE_ID: ${cpeId}, skipping.`);
                 continue;
             }
 
-            // Check which OrderIDs already exist in Orders
-            const orderIDs = enquiryRows.map(row => row.OrderID);
-            const placeholders = orderIDs.map(() => '?').join(',');
-            const [existingOrders] = await connection.execute(
-                `SELECT OrderID FROM Orders WHERE OrderID IN (${placeholders})`,
-                orderIDs
-            );
-
-            const existingOrderIDs = new Set(existingOrders.map(row => row.OrderID));
-
-            // Filter new rows only
-            const rowsToInsert = enquiryRows.filter(row => !existingOrderIDs.has(row.OrderID));
-
-            if (rowsToInsert.length === 0) {
-                console.log(`All orders for CPE_ID: ${cpeId} already exist.`);
-                // Delete enquiries since they are duplicates, optional:
-                await connection.execute(`DELETE FROM container_place_enquiry WHERE CPE_ID = ?`, [cpeId]);
-                continue;
+            // Insert each row into Orders
+            for (const row of enquiryRows) {
+                try {
+                    await connection.execute(
+                        `INSERT INTO Orders 
+                            (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        [
+                            row.OrderID,
+                            row.CPE_ID,
+                            row.CartonQty,
+                            row.ProductID,
+                            row.UserID,
+                            row.UploadDate,
+                            row.TotalQty,
+                            row.RatePerUnitUsd,
+                            row.RatePerCaseUSD,
+                            row.TotalRateInUSDFobIndia,
+                            row.TotalNetWeight,
+                        ]
+                    );
+                    console.log(`Inserted OrderID ${row.OrderID} for CPE_ID ${cpeId}`);
+                } catch (insertErr) {
+                    console.error(`Insert failed for OrderID ${row.OrderID} with error:`, insertErr);
+                    // Throw to rollback entire transaction on insert failure
+                    throw insertErr;
+                }
             }
 
-            // Insert all new rows sequentially
-            for (const row of rowsToInsert) {
+            // After successful insertion of all rows for this CPE_ID, delete enquiry rows
+            try {
                 await connection.execute(
-                    `INSERT INTO Orders 
-                    (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [
-                        row.OrderID, row.CPE_ID, row.CartonQty, row.ProductID, row.UserID, row.UploadDate,
-                        row.TotalQty, row.RatePerUnitUsd, row.RatePerCaseUSD, row.TotalRateInUSDFobIndia, row.TotalNetWeight
-                    ]
+                    `DELETE FROM container_place_enquiry WHERE CPE_ID = ?`,
+                    [cpeId]
                 );
+                console.log(`Deleted enquiry rows for CPE_ID: ${cpeId}`);
+            } catch (deleteErr) {
+                console.error(`Delete failed for CPE_ID ${cpeId} with error:`, deleteErr);
+                // Throw to rollback entire transaction on delete failure
+                throw deleteErr;
             }
-
-            // **Only after all inserts succeed, delete from enquiry**
-            await connection.execute(`DELETE FROM container_place_enquiry WHERE CPE_ID = ?`, [cpeId]);
         }
 
         await connection.commit();
+        console.log('Transaction committed successfully.');
         res.status(200).json({ message: 'Selected enquiries successfully converted to orders.' });
+
     } catch (err) {
-        if (connection) await connection.rollback();
-        console.error('Error during transaction:', err);
+        if (connection) {
+            await connection.rollback();
+            console.error('Transaction rolled back due to error:', err);
+        }
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     } finally {
         if (connection) connection.release();
