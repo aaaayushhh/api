@@ -225,20 +225,24 @@ testConnection();
 //     .catch(err => console.error('Database connection failed:', err));
 
 // Define routes
+// ✅ /GetAllProducts endpoint with pagination
 app.get("/GetAllProducts", async (req, res) => {
     try {
-        let page = parseInt(req.query.page) || 1;
-        let limit = parseInt(req.query.limit) || 50;
-        let offset = (page - 1) * limit;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
 
+        // Get total count
         const [totalRows] = await pool.execute("SELECT COUNT(*) AS count FROM cornitos_master");
         const totalCount = totalRows[0].count;
 
+        // Get paginated products
         const [products] = await pool.execute(
             "SELECT * FROM cornitos_master LIMIT ? OFFSET ?",
             [limit, offset]
         );
 
+        // Attach images
         const productsWithImages = await Promise.all(
             products.map(async (product) => {
                 const [images] = await pool.execute(
@@ -253,6 +257,7 @@ app.get("/GetAllProducts", async (req, res) => {
             })
         );
 
+        // Return paginated response
         res.json({
             data: productsWithImages,
             totalCount,
