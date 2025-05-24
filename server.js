@@ -1901,53 +1901,59 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
         await connection.beginTransaction();
 
         for (const cpeId of cpeIds) {
-            // Check if CPE_ID already exists in Orders
-            const checkQuery = `
-                SELECT COUNT(*) AS count 
-                FROM Orders 
-                WHERE CPE_ID = ?
-            `;
-            const [checkResult] = await connection.execute(checkQuery, [cpeId]);
-
-            if (checkResult[0].count > 0) {
-                continue; // Skip if the CPE_ID already exists
-            }
-
-            // Verify the data before inserting
+            // Fetch all enquiry rows for this cpeId
             const selectQuery = `
-                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
+                SELECT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
                 FROM container_place_enquiry
                 WHERE CPE_ID = ?
             `;
-            const [selectResult] = await connection.execute(selectQuery, [cpeId]);
+            const [enquiryRows] = await connection.execute(selectQuery, [cpeId]);
 
-            // Check if the result has valid data
-            if (selectResult.length === 0) {
-                console.log('No data found for CPE_ID:', cpeId);
+            if (enquiryRows.length === 0) {
+                console.log(`No enquiry data found for CPE_ID: ${cpeId}`);
                 continue;
             }
 
-            // Insert the data into the Orders table using CPE_ID
-            const insertQuery = `
-                INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
-                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight
-                FROM container_place_enquiry
-                WHERE CPE_ID = ?
-            `;
-            try {
-                await connection.execute(insertQuery, [cpeId]);
-            } catch (err) {
-                console.error('Error during INSERT query:', err);
-                continue; // Continue with next iteration if insert fails
+            for (const row of enquiryRows) {
+                // Check if this exact order item already exists in Orders
+                const checkQuery = `
+                    SELECT COUNT(*) AS count 
+                    FROM Orders 
+                    WHERE CPE_ID = ? AND ProductID = ?
+                `;
+                const [checkResult] = await connection.execute(checkQuery, [row.CPE_ID, row.ProductID]);
+
+                if (checkResult[0].count > 0) {
+                    // Skip if this item already exists in Orders
+                    continue;
+                }
+
+                // Insert this single item into Orders
+                const insertQuery = `
+                    INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
+                await connection.execute(insertQuery, [
+                    row.OrderID,
+                    row.CPE_ID,
+                    row.CartonQty,
+                    row.ProductID,
+                    row.UserID,
+                    row.UploadDate,
+                    row.TotalQty,
+                    row.RatePerUnitUsd,
+                    row.RatePerCaseUSD,
+                    row.TotalRateInUSDFobIndia,
+                    row.TotalNetWeight
+                ]);
             }
 
-            // Mark the enquiry data as converted
-            const updateQuery = `
-                UPDATE container_place_enquiry
-                SET IsConverted = 1
+            // After all items inserted for this CPE_ID, delete all related enquiry rows
+            const deleteQuery = `
+                DELETE FROM container_place_enquiry
                 WHERE CPE_ID = ?
             `;
-            await connection.execute(updateQuery, [cpeId]);
+            await connection.execute(deleteQuery, [cpeId]);
         }
 
         await connection.commit(); // Commit the transaction
