@@ -960,32 +960,64 @@ app.put("/update-brand", async (req, res) => {
 });
 
 
-// Update a brand
+// Update a product
+// Express and MySQL assumed already set up
 app.put("/update-product", async (req, res) => {
-    const { oldName, newName } = req.body;
+    const {
+        oldSKUCode,      // For locating the correct product to update
+        SKUCode,
+        productName,
+        unitPerCarton,
+        unit,
+        weightPerPkt,
+        unitMeasurementType,
+        categoryName,
+        subCategoryName,
+        brandName
+    } = req.body;
 
-    if (!oldName || !newName) {
-        return res.status(400).json({ message: "Both oldName and newName are required." });
+    if (!oldSKUCode || !SKUCode || !productName) {
+        return res.status(400).json({ message: "Missing required fields." });
     }
 
     try {
-        // Run the SQL UPDATE query
         const [result] = await pool.query(
-            `UPDATE cornitos_master SET PRODUCT_DESCRIPTION = ? WHERE PRODUCT_DESCRIPTION = ?`,
-            [newName, oldName]
+            `UPDATE cornitos_master SET 
+                SKU_CODE = ?, 
+                PRODUCT_DESCRIPTION = ?, 
+                UNIT_PER_CARTON = ?, 
+                UNIT = ?, 
+                WEIGHT_PER_PKT_GRAMS = ?, 
+                UNIT_MEASUREMENT_TYPE = ?, 
+                CATEGORY = ?, 
+                SUB_CATEGORY = ?, 
+                BRAND = ?
+            WHERE SKU_CODE = ?`,
+            [
+                SKUCode,
+                productName,
+                unitPerCarton,
+                unit,
+                weightPerPkt,
+                unitMeasurementType,
+                categoryName,
+                subCategoryName,
+                brandName,
+                oldSKUCode
+            ]
         );
 
-        // Check if any row was updated
         if (result.affectedRows > 0) {
             return res.json({ message: "Product updated successfully" });
         } else {
             return res.status(404).json({ message: "Product not found" });
         }
     } catch (err) {
-        console.error('Error updating Product:', err);
-        return res.status(500).json({ message: "Error updating Product", error: err.message });
+        console.error("Error updating product:", err);
+        return res.status(500).json({ message: "Server error", error: err.message });
     }
 });
+
 
 
 // app.post('/login', async (req, res) => {
