@@ -1965,6 +1965,54 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
     }
 });
 
+
+app.post('/delete-enquiry-after-conversion', async (req, res) => {
+    const { cpeIds } = req.body;
+
+    if (!Array.isArray(cpeIds) || cpeIds.length === 0) {
+        return res.status(400).json({ message: 'No CPE_IDs provided for deletion.' });
+    }
+
+    let connection;
+    try {
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
+
+        for (const cpeId of cpeIds) {
+            // Check if CPE_ID exists in Orders
+            const [orderCheck] = await connection.execute(
+                `SELECT COUNT(*) AS count FROM Orders WHERE CPE_ID = ?`,
+                [cpeId]
+            );
+
+            if (orderCheck[0].count === 0) {
+                console.log(`CPE_ID ${cpeId} not found in Orders table. Skipping deletion.`);
+                continue;
+            }
+
+            // Delete from container_place_enquiry
+            const [deleteResult] = await connection.execute(
+                `DELETE FROM container_place_enquiry WHERE CPE_ID = ?`,
+                [cpeId]
+            );
+
+            console.log(`Deleted ${deleteResult.affectedRows} rows for CPE_ID ${cpeId}`);
+        }
+
+        await connection.commit();
+        res.status(200).json({ message: 'Enquiry rows deleted successfully after verification.' });
+    } catch (err) {
+        if (connection) await connection.rollback();
+        console.error('Error during deletion transaction:', err);
+        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+    } finally {
+        if (connection) connection.release();
+    }
+});
+
+
+
+
 // API to Get Orders Data
 app.get('/Get-orders', async (req, res) => {
     try {
