@@ -2664,6 +2664,34 @@ app.post('/admin-products-delete-multiple', async (req, res) => {
 
 
 
+// const { v4: uuidv4 } = require("uuid");
+
+app.post("/create-order", async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({ error: "Missing userId" });
+    }
+
+    const OrderID = uuidv4(); // generates like "de2220c2-4640-4c3f-91f5-63f92d3a02ce"
+
+    try {
+        const query = "INSERT INTO Orders (UserID, OrderID, OrderDate) VALUES (?, ?, NOW())";
+        await pool.execute(query, [userId, OrderID]);
+
+        res.status(201).json({
+            message: "Order created successfully",
+            orderNumber,
+        });
+    } catch (error) {
+        console.error("Error creating order:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
+
+
+
 // Set the server to listen on PORT
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
