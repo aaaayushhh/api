@@ -2681,7 +2681,7 @@ app.post("/create-order", async (req, res) => {
 
         res.status(201).json({
             message: "Order created successfully",
-            orderNumber,
+            OrderID,
         });
     } catch (error) {
         console.error("Error creating order:", error);
