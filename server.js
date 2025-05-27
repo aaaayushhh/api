@@ -2676,7 +2676,7 @@ app.post("/create-order", async (req, res) => {
     const OrderID = uuidv4(); // generates like "de2220c2-4640-4c3f-91f5-63f92d3a02ce"
 
     try {
-        const query = "INSERT INTO Orders (UserID, OrderID, OrderDate) VALUES (?, ?, NOW())";
+        const query = "INSERT INTO Orders (UserID, OrderID, UploadDate) VALUES (?, ?, NOW())";
         await pool.execute(query, [userId, OrderID]);
 
         res.status(201).json({
