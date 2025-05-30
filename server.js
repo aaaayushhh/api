@@ -2649,16 +2649,19 @@ app.delete('/admin-products-delete/:SKU_CODE', async (req, res) => {
 app.post('/admin-products-delete-multiple', async (req, res) => {
     try {
         const { SKU_CODE } = req.body;
+
         if (!Array.isArray(SKU_CODE) || SKU_CODE.length === 0) {
             return res.status(400).json({ message: 'SKU_CODE must be a non-empty array' });
         }
 
         const placeholders = SKU_CODE.map(() => '?').join(',');
         await pool.query(`DELETE FROM cornitos_master WHERE SKU_CODE IN (${placeholders})`, SKU_CODE);
-        res.sendStatus(200).json({ message: 'Deleted successfully' });
+
+        // Corrected response
+        return res.status(200).json({ message: 'Deleted successfully' });
     } catch (err) {
         console.error(err);
-        res.sendStatus(500);
+        return res.status(500).json({ message: 'Internal server error' });
     }
 });
 
