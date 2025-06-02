@@ -2628,15 +2628,15 @@ app.post("/upload-images", imageupload.array("images"), async (req, res) => {
 
 
 // Example using Express
-app.delete('/admin-products-delete/:SKU_CODE', async (req, res) => {
-    const { SKU_CODE } = req.params;
+app.delete('/admin-products-delete/:ID', async (req, res) => {
+    const { ID } = req.params;
     try {
-        const result = await pool.query('DELETE FROM cornitos_master WHERE SKU_CODE = ?', [SKU_CODE]);
+        const result = await pool.query('DELETE FROM cornitos_master WHERE ID = ?', [ID]);
 
         if (result.affectedRows > 0) {
             res.status(200).send({ message: 'Product deleted successfully' });
         } else {
-            // Already deleted or SKU not found — still return 200
+            // Already deleted or ID not found — still return 200
             res.status(200).send({ message: 'Product not found or already deleted' });
         }
     } catch (err) {
@@ -2648,14 +2648,14 @@ app.delete('/admin-products-delete/:SKU_CODE', async (req, res) => {
 
 app.post('/admin-products-delete-multiple', async (req, res) => {
     try {
-        const { SKU_CODE } = req.body;
+        const { ID } = req.body;
 
-        if (!Array.isArray(SKU_CODE) || SKU_CODE.length === 0) {
-            return res.status(400).json({ message: 'SKU_CODE must be a non-empty array' });
+        if (!Array.isArray(ID) || ID.length === 0) {
+            return res.status(400).json({ message: 'ID must be a non-empty array' });
         }
 
-        const placeholders = SKU_CODE.map(() => '?').join(',');
-        await pool.query(`DELETE FROM cornitos_master WHERE SKU_CODE IN (${placeholders})`, SKU_CODE);
+        const placeholders = ID.map(() => '?').join(',');
+        await pool.query(`DELETE FROM cornitos_master WHERE ID IN (${placeholders})`, ID);
 
         // Corrected response
         return res.status(200).json({ message: 'Deleted successfully' });
