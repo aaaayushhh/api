@@ -738,7 +738,7 @@ app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, re
                 c_m.UNIT,
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
-                cpe.UserID,
+                o.UserID,
                 u.FirstName
             FROM
                 Orders o
@@ -786,7 +786,7 @@ app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => 
                 c_m.UNIT,
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
-                cpe.UserID,
+                o.UserID,
                 u.FirstName
             FROM
                 Orders o
