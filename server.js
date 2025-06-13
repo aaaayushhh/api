@@ -2127,10 +2127,16 @@ app.get('/Get-orders', async (req, res) => {
         if (!pool) throw new Error("Database connection is not initialized");
 
         const query = `
-            SELECT DISTINCT
-                o.OrderID, o.CartonQty, o.ProductID, o.UploadDate,
-                u.EmailID, u.UserID, u.FirstName, u.LastName, u.CompanyName,
-                ofiles.ShippingStatus, ofiles.ProformaInvoiceNumber
+            SELECT 
+                o.OrderID,
+                MAX(o.UploadDate) AS UploadDate,
+                u.EmailID,
+                u.UserID,
+                u.FirstName,
+                u.LastName,
+                u.CompanyName,
+                ofiles.ShippingStatus,
+                ofiles.ProformaInvoiceNumber
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
             LEFT JOIN (
@@ -2143,7 +2149,8 @@ app.get('/Get-orders', async (req, res) => {
                 ) of2
                 ON of1.OrderID = of2.OrderID AND of1.UploadDate = of2.MaxDate
             ) ofiles ON o.OrderID = ofiles.OrderID
-            ORDER BY o.UploadDate DESC
+            GROUP BY o.OrderID
+            ORDER BY UploadDate DESC
         `;
 
         const [rows] = await pool.query(query);
@@ -2154,6 +2161,7 @@ app.get('/Get-orders', async (req, res) => {
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
+
 
 
 
