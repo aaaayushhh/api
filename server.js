@@ -707,6 +707,114 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
     }
 });
 
+
+
+
+app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, res) => {
+    const { userId } = req.params;
+    try {
+        if (!userId) {
+            return res.status(400).json({ message: 'UserID is required' });
+        }
+
+        const query = `
+            SELECT
+                o.CPE_ID,
+                o.CartonQty,
+                o.ProductID,
+                o.OrderID,
+                o.UploadDate,
+                o.TotalQty,
+                o.RatePerUnitUSD,
+                o.RatePerCaseUSD,
+                o.TotalRateInUSDFobIndia,
+                o.TotalNetWeight,
+                o.UserStatus,
+                c_m.PRODUCT_DESCRIPTION,
+                c_m.SKU_CODE,
+                c_m.CATEGORY,
+                c_m.BRAND,
+                c_m.SUB_CATEGORY,
+                c_m.UNIT,
+                c_m.UNIT_PER_CTN,
+                c_m.WEIGHT_PER_PKT_GRAMS,
+                cpe.UserID,
+                u.FirstName
+            FROM
+                Orders o
+            INNER JOIN
+                cornitos_master c_m ON cpe.ProductID = c_m.ID
+            INNER JOIN
+                users u ON cpe.UserID = u.UserID
+            WHERE
+                cpe.UserID = ?
+        `;
+        const [rows] = await pool.query(query, [userId]);
+        res.status(200).json({ data: rows });
+    } catch (err) {
+        console.error('Error fetching data:', err);
+        res.status(500).json({ msg: 'Error Fetching Data', error: err.message });
+    }
+});
+
+app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => {
+    const { userId, orderId } = req.params;
+
+    try {
+        if (!userId) {
+            return res.status(400).json({ message: "UserID is required" });
+        }
+
+        let query = `
+            SELECT
+                o.CPE_ID,
+                o.CartonQty,
+                o.ProductID,
+                o.OrderID,
+                o.UploadDate,
+                o.TotalQty,
+                o.RatePerUnitUSD,
+                o.RatePerCaseUSD,
+                o.TotalRateInUSDFobIndia,
+                o.TotalNetWeight,
+                o.UserStatus,
+                c_m.PRODUCT_DESCRIPTION,
+                c_m.SKU_CODE,
+                c_m.CATEGORY,
+                c_m.BRAND,
+                c_m.SUB_CATEGORY,
+                c_m.UNIT,
+                c_m.UNIT_PER_CTN,
+                c_m.WEIGHT_PER_PKT_GRAMS,
+                cpe.UserID,
+                u.FirstName
+            FROM
+                Orders o
+            INNER JOIN
+                cornitos_master c_m ON cpe.ProductID = c_m.ID
+            INNER JOIN
+                users u ON cpe.UserID = u.UserID
+            WHERE
+                cpe.UserID = ?
+        `;
+        const queryParams = [userId];
+
+        if (orderId) {
+            query += " AND o.OrderID = ?";
+            queryParams.push(orderId);
+        }
+
+        const [rows] = await pool.query(query, queryParams);
+        res.status(200).json({ data: rows });
+    } catch (err) {
+        console.error("Error fetching data:", err);
+        res.status(500).json({ msg: "Error Fetching Data", error: err.message });
+    }
+});
+
+
+
+
 const { v4: uuidv4 } = require('uuid');
 
 // Add to Container
