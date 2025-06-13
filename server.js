@@ -743,7 +743,7 @@ app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, re
             FROM
                 Orders o
             INNER JOIN
-                cornitos_master c_m ON cpe.ProductID = c_m.ID
+                cornitos_master c_m ON o.ProductID = c_m.ID
             INNER JOIN
                 users u ON o.UserID = u.UserID
             WHERE
@@ -791,7 +791,7 @@ app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => 
             FROM
                 Orders o
             INNER JOIN
-                cornitos_master c_m ON cpe.ProductID = c_m.ID
+                cornitos_master c_m ON o.ProductID = c_m.ID
             INNER JOIN
                 users u ON o.UserID = u.UserID
             WHERE
