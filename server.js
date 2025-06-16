@@ -2127,16 +2127,6 @@ app.get('/Get-orders', async (req, res) => {
         if (!pool) throw new Error("Database connection is not initialized");
 
         const query = `
-            WITH LatestFiles AS (
-                SELECT *
-                FROM (
-                    SELECT 
-                        *,
-                        ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY UploadDate DESC) AS rn
-                    FROM OrderFiles
-                ) ranked
-                WHERE rn = 1
-            )
             SELECT 
                 o.OrderID,
                 o.UploadDate,
@@ -2145,12 +2135,23 @@ app.get('/Get-orders', async (req, res) => {
                 u.FirstName,
                 u.LastName,
                 u.CompanyName,
-                lf.ShippingStatus,
-                lf.ProformaInvoiceNumber
+                (
+                    SELECT ShippingStatus
+                    FROM OrderFiles of1
+                    WHERE of1.OrderID = o.OrderID
+                    ORDER BY of1.UploadDate DESC
+                    LIMIT 1
+                ) AS ShippingStatus,
+                (
+                    SELECT ProformaInvoiceNumber
+                    FROM OrderFiles of2
+                    WHERE of2.OrderID = o.OrderID
+                    ORDER BY of2.UploadDate DESC
+                    LIMIT 1
+                ) AS ProformaInvoiceNumber
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
-            LEFT JOIN OrderFiles lf ON o.OrderID = lf.OrderID
-            ORDER BY o.UploadDate DESC
+            ORDER BY o.UploadDate DESC;
         `;
 
         const [rows] = await pool.query(query);
