@@ -2127,7 +2127,7 @@ app.get('/Get-orders', async (req, res) => {
         if (!pool) throw new Error("Database connection is not initialized");
 
         const query = `
-            WITH LatestFiles AS (
+            WITH OrderFiles AS (
                 SELECT *
                 FROM (
                     SELECT 
