@@ -1752,7 +1752,6 @@ app.post('/upload-csv', (req, res) => {
         fs.createReadStream(filePath)
             .pipe(csvParser())
             .on('data', (row) => {
-                // Trim all column names to handle any invisible characters or spaces
                 const sanitizedRow = Object.fromEntries(
                     Object.entries(row).map(([key, val]) => [key.trim(), val])
                 );
@@ -1761,22 +1760,53 @@ app.post('/upload-csv', (req, res) => {
             .on('end', async () => {
                 try {
                     const connection = await pool.getConnection();
+
                     for (let row of results) {
                         const skuCode = row['SKU_CODE'];
 
-                        // Check if SKU_CODE exists
-                        const [existing] = await connection.query(`SELECT COUNT(*) AS count FROM cornitos_master WHERE SKU_CODE = ?`, [skuCode]);
+                        // Check if SKU_CODE already exists
+                        const [existingRows] = await connection.query(
+                            `SELECT * FROM cornitos_master WHERE SKU_CODE = ?`, [skuCode]
+                        );
 
-                        if (existing.length > 0 && existing[0].count > 0) {
-                            console.warn(`SKU_CODE ${skuCode} already exists. Skipping row.`);
-                            continue; // Skip duplicate SKU
+                        if (existingRows.length > 0) {
+                            const existing = existingRows[0];
+
+                            // Define the columns you want to conditionally update if missing
+                            const columnsToCheck = ['BARCODE', 'MRP', 'REMARKS', 'PRODUCT_DESCRIPTION'];
+                            let shouldUpdate = false;
+                            const updates = [];
+                            const values = [];
+
+                            for (let col of columnsToCheck) {
+                                const incomingValue = row[col];
+                                const existingValue = existing[col];
+
+                                if ((!existingValue || existingValue === '') && incomingValue) {
+                                    updates.push(`${col} = ?`);
+                                    values.push(incomingValue);
+                                    shouldUpdate = true;
+                                }
+                            }
+
+                            if (shouldUpdate) {
+                                values.push(skuCode); // for WHERE clause
+                                const updateQuery = `UPDATE cornitos_master SET ${updates.join(', ')} WHERE SKU_CODE = ?`;
+                                await connection.query(updateQuery, values);
+                                console.log(`Updated missing fields for SKU_CODE: ${skuCode}`);
+                            } else {
+                                console.log(`SKU_CODE ${skuCode} already complete. Skipping update.`);
+                            }
+
+                            continue;
                         }
 
-                        // Insert into database
+                        // If SKU doesn't exist, insert it
                         const insertQuery = `
-                    INSERT INTO cornitos_master 
-                    (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                            INSERT INTO cornitos_master 
+                            (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        `;
 
                         await connection.query(insertQuery, [
                             row['CATEGORY'],
@@ -1798,7 +1828,8 @@ app.post('/upload-csv', (req, res) => {
                             row['BARCODE'],
                             row['MRP'],
                             row['REMARKS'],
-                            row['UNIT_MEASUREMENT_TYPE']
+                            row['UNIT_MEASUREMENT_TYPE'],
+                            row['UNIT_MEASUREMENT']
                         ]);
                     }
 
@@ -1812,12 +1843,13 @@ app.post('/upload-csv', (req, res) => {
                     return res.status(200).json({ message: 'CSV data successfully uploaded and saved!' });
 
                 } catch (error) {
-                    console.error('Error inserting data:', error);
-                    return res.status(500).json({ message: 'Error inserting data', error: error.message });
+                    console.error('Error inserting/updating data:', error);
+                    return res.status(500).json({ message: 'Error inserting/updating data', error: error.message });
                 }
             });
     });
 });
+
 
 
 // Endpoint to upload a single file
