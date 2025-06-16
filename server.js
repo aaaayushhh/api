@@ -1773,7 +1773,7 @@ app.post('/upload-csv', (req, res) => {
                             const existing = existingRows[0];
 
                             // Define the columns you want to conditionally update if missing
-                            const columnsToCheck = ['BARCODE', 'MRP', 'REMARKS', 'PRODUCT_DESCRIPTION'];
+                            const columnsToCheck = ['PRODUCT_DESCRIPTION', 'CATEGORY', 'CATEGORY_CODE', 'SUB_CATEGORY', 'BRAND', 'CODE', 'UNIT', 'UNIT_PER_CTN', 'WEIGHT_PER_PKT_GRAMS', 'SHELF_LIFE_MONTHS', 'NET_WEIGHT', 'LENGTH_INCHES', 'WIDTH_INCHES', 'HEIGHT_INCHES', 'VOL_PER_CTN', 'BARCODE', 'MRP', 'REMARKS', 'UNIT_MEASUREMENT_TYPE', 'UNIT_MEASUREMENT'];
                             let shouldUpdate = false;
                             const updates = [];
                             const values = [];
@@ -1804,8 +1804,8 @@ app.post('/upload-csv', (req, res) => {
                         // If SKU doesn't exist, insert it
                         const insertQuery = `
                             INSERT INTO cornitos_master 
-                            (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            (CATEGORY, CATEGORY_CODE, SUB_CATEGORY, BRAND, CODE, SKU_CODE, PRODUCT_DESCRIPTION, UNIT, UNIT_PER_CTN, WEIGHT_PER_PKT_GRAMS, SHELF_LIFE_MONTHS, NET_WEIGHT, LENGTH_INCHES, WIDTH_INCHES, HEIGHT_INCHES, VOL_PER_CTN, BARCODE, MRP, REMARKS, UNIT_MEASUREMENT_TYPE, UNIT_MEASUREMENT) 
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         `;
 
                         await connection.query(insertQuery, [
