@@ -2149,7 +2149,7 @@ app.get('/Get-orders', async (req, res) => {
                 lf.ProformaInvoiceNumber
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
-            LEFT JOIN LatestFiles lf ON o.OrderID = lf.OrderID
+            LEFT JOIN OrderFiles lf ON o.OrderID = lf.OrderID
             ORDER BY o.UploadDate DESC
         `;
 
