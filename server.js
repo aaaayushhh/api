@@ -2127,7 +2127,7 @@ app.get('/Get-orders', async (req, res) => {
         if (!pool) throw new Error("Database connection is not initialized");
 
         const query = `
-            WITH OrderFiles AS (
+            WITH LatestFiles AS (
                 SELECT *
                 FROM (
                     SELECT 
@@ -2149,7 +2149,7 @@ app.get('/Get-orders', async (req, res) => {
                 lf.ProformaInvoiceNumber
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
-            LEFT JOIN OrderFiles lf ON o.OrderID = lf.OrderID
+            LEFT JOIN LatestFiles lf ON o.OrderID = lf.OrderID
             ORDER BY o.UploadDate DESC
         `;
 
@@ -2161,6 +2161,7 @@ app.get('/Get-orders', async (req, res) => {
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
+
 
 
 
