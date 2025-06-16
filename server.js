@@ -2306,7 +2306,7 @@ app.get('/Get-orders-data-user-side-user-dashboard/:userId', async (req, res) =>
 app.get('/Get-orders-for-admin-dash', async (req, res) => {
     try {
         const query = `
-            SELECT 
+            SELECT DISTINCT
                 o.OrderID,
                 o.CartonQty,
                 o.ProductID,
