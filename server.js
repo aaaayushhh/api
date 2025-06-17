@@ -1320,7 +1320,7 @@ app.put("/profile", authMiddleware, async (req, res) => {
 
 app.put("/admin-update-profile", async (req, res) => {
     const {
-        userId,
+        UserID, // changed from `userId`
         FirstName,
         LastName,
         PhoneNumber,
@@ -1359,7 +1359,7 @@ app.put("/admin-update-profile", async (req, res) => {
             AlternatePhone,
             AlternateEmailID,
             FinalDestination,
-            userId
+            UserID // make sure this matches the parameter
         ]);
 
         res.json({ message: "User profile updated successfully" });
@@ -1368,6 +1368,7 @@ app.put("/admin-update-profile", async (req, res) => {
         res.status(500).json({ error: "Server error while updating user profile" });
     }
 });
+
 
 
 
