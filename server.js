@@ -739,7 +739,9 @@ app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, re
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 o.UserID,
-                u.FirstName
+                u.FirstName,
+                u.EmailID,
+                u.CompanyName
             FROM
                 Orders o
             INNER JOIN
@@ -787,7 +789,9 @@ app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => 
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 o.UserID,
-                u.FirstName
+                u.FirstName,
+                u.EmailID,
+                u.CompanyName
             FROM
                 Orders o
             INNER JOIN
