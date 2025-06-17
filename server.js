@@ -1384,6 +1384,34 @@ app.delete("/delete-user/:userId", async (req, res) => {
 });
 
 
+app.get("/export-users", async (req, res) => {
+    try {
+        const [rows] = await pool.query(`
+            SELECT 
+                UserID, 
+                EmailID, 
+                FirstName, 
+                LastName, 
+                CompanyName, 
+                PhoneNumber, 
+                CompanyAddress, 
+                City, 
+                State, 
+                Country, 
+                ZipCode, 
+                DischargePort, 
+                AlternatePhone, 
+                AlternateEmailID, 
+                FinalDestination 
+            FROM users
+        `);
+        res.json(rows);
+    } catch (err) {
+        console.error("Error exporting users:", err);
+        res.status(500).json({ error: "Failed to export users" });
+    }
+});
+
 
 
 
