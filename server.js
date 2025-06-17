@@ -1317,6 +1317,60 @@ app.put("/profile", authMiddleware, async (req, res) => {
     }
 });
 
+
+app.put("/admin-update-profile", async (req, res) => {
+    const {
+        userId,
+        FirstName,
+        LastName,
+        PhoneNumber,
+        CompanyName,
+        CompanyAddress,
+        City,
+        State,
+        Country,
+        ZipCode,
+        DischargePort,
+        AlternatePhone,
+        AlternateEmailID,
+        FinalDestination
+    } = req.body;
+
+    try {
+        const query = `
+            UPDATE users 
+            SET FirstName = ?, LastName = ?, PhoneNumber = ?, CompanyName = ?, 
+                CompanyAddress = ?, City = ?, State = ?, Country = ?, ZipCode = ?, 
+                DischargePort = ?, AlternatePhone = ?, AlternateEmailID = ?, FinalDestination = ? 
+            WHERE UserID = ?
+        `;
+
+        await pool.query(query, [
+            FirstName,
+            LastName,
+            PhoneNumber,
+            CompanyName,
+            CompanyAddress,
+            City,
+            State,
+            Country,
+            ZipCode,
+            DischargePort,
+            AlternatePhone,
+            AlternateEmailID,
+            FinalDestination,
+            userId
+        ]);
+
+        res.json({ message: "User profile updated successfully" });
+    } catch (err) {
+        console.error("Error updating user profile:", err.message);
+        res.status(500).json({ error: "Server error while updating user profile" });
+    }
+});
+
+
+
 // GET API to fetch user profile
 app.get("/get-profile/:userId", async (req, res) => {
     const { userId } = req.params;
