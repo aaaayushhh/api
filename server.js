@@ -1371,6 +1371,21 @@ app.put("/admin-update-profile", async (req, res) => {
 
 
 
+app.delete("/delete-user/:userId", async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        await pool.query(`DELETE FROM users WHERE UserID = ?`, [userId]);
+        res.json({ message: "User deleted successfully" });
+    } catch (err) {
+        console.error("Error deleting user:", err);
+        res.status(500).json({ error: "Server error while deleting user" });
+    }
+});
+
+
+
+
 
 // GET API to fetch user profile
 app.get("/get-profile/:userId", async (req, res) => {
