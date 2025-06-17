@@ -1663,6 +1663,54 @@ app.get('/get-shipment-details/:userId/:orderId', async (req, res) => {
 });
 
 
+app.get('/user-by-order/:userId/:orderId', async (req, res) => {
+    const { userId, orderId } = req.params;
+
+    try {
+        // Check if such an order exists
+        const [orderRows] = await pool.query(
+            `SELECT * FROM Orders WHERE OrderID = ? AND UserID = ?`,
+            [orderId, userId]
+        );
+
+        if (orderRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "No matching order found for the given user and order ID"
+            });
+        }
+
+        // Fetch user details
+        const [userRows] = await pool.query(
+            `SELECT * FROM users WHERE UserID = ?`,
+            [userId]
+        );
+
+        if (userRows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            user: userRows[0]
+        });
+
+    } catch (error) {
+        console.error("Error fetching user by order:", error);
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+            error: error.message
+        });
+    }
+});
+
+
+
+
 // Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
