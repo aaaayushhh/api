@@ -2309,6 +2309,7 @@ app.get('/Get-orders', async (req, res) => {
         if (!pool) throw new Error("Database connection is not initialized");
 
         const query = `
+            -- Pick latest OrderFiles per OrderID with preference to non-null ShippingStatus
             WITH LatestFiles AS (
                 SELECT *
                 FROM (
@@ -2323,6 +2324,21 @@ app.get('/Get-orders', async (req, res) => {
                     FROM OrderFiles
                 ) ranked
                 WHERE rn = 1
+            ),
+
+            -- Deduplicate Orders table: only one row per OrderID
+            UniqueOrders AS (
+                SELECT *
+                FROM (
+                    SELECT 
+                        *,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY OrderID 
+                            ORDER BY UploadDate DESC
+                        ) AS rn
+                    FROM Orders
+                ) ranked
+                WHERE rn = 1
             )
 
             SELECT 
@@ -2335,7 +2351,7 @@ app.get('/Get-orders', async (req, res) => {
                 u.CompanyName,
                 lf.ShippingStatus,
                 lf.ProformaInvoiceNumber
-            FROM Orders o
+            FROM UniqueOrders o
             INNER JOIN users u ON o.UserID = u.UserID
             LEFT JOIN LatestFiles lf ON o.OrderID = lf.OrderID
             ORDER BY o.UploadDate DESC;
