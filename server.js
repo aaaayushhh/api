@@ -2465,12 +2465,12 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
                 u.LastName,
                 u.CompanyName,
                 (
-                    SELECT of.ShippingStatus
-                    FROM OrderFiles of
-                    WHERE of.OrderID = o.OrderID
-                    ORDER BY of.UploadDate DESC
-                    LIMIT 1
-                ) AS ShippingStatus
+    SELECT of.ShippingStatus
+    FROM OrderFiles of
+    WHERE of.OrderID = o.OrderID AND of.ShippingStatus IS NOT NULL
+    ORDER BY of.UploadDate DESC
+    LIMIT 1
+) AS ShippingStatus
             FROM 
                 Orders o
             JOIN 
