@@ -2314,11 +2314,17 @@ app.get('/Get-orders', async (req, res) => {
                 FROM (
                     SELECT 
                         *,
-                        ROW_NUMBER() OVER (PARTITION BY OrderID ORDER BY UploadDate DESC) AS rn
+                        ROW_NUMBER() OVER (
+                            PARTITION BY OrderID 
+                            ORDER BY 
+                                CASE WHEN ShippingStatus IS NOT NULL THEN 0 ELSE 1 END,
+                                UploadDate DESC
+                        ) AS rn
                     FROM OrderFiles
                 ) ranked
                 WHERE rn = 1
             )
+
             SELECT 
                 o.OrderID,
                 o.UploadDate,
@@ -2332,11 +2338,11 @@ app.get('/Get-orders', async (req, res) => {
             FROM Orders o
             INNER JOIN users u ON o.UserID = u.UserID
             LEFT JOIN LatestFiles lf ON o.OrderID = lf.OrderID
-            ORDER BY o.UploadDate DESC
+            ORDER BY o.UploadDate DESC;
         `;
 
         const [rows] = await pool.query(query);
-        res.json({ msg: "Data Fetched Successfully", data: rows });
+        res.status(200).json({ msg: "Data Fetched Successfully", data: rows });
 
     } catch (err) {
         console.error("Query Failed:", err);
