@@ -2470,7 +2470,7 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
                     WHERE of.OrderID = o.OrderID
                     ORDER BY of.UploadDate DESC
                     LIMIT 1
-                ) AS DealStatus
+                ) AS ShippingStatus
             FROM 
                 Orders o
             JOIN 
