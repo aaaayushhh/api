@@ -2456,32 +2456,29 @@ app.get('/Get-orders-data-user-side-user-dashboard/:userId', async (req, res) =>
 app.get('/Get-orders-for-admin-dash', async (req, res) => {
     try {
         const query = `
-            SELECT DISTINCT
+            SELECT 
                 o.OrderID,
-                o.CartonQty,
-                o.ProductID,
-                o.UploadDate,
-                cm.PRODUCT_DESCRIPTION,
-                cm.SKU_CODE,
-                cm.CATEGORY,
-                cm.BRAND,
-                cm.SUB_CATEGORY,
-                cm.UNIT,
-                cm.UNIT_PER_CTN,
-                cm.WEIGHT_PER_PKT_GRAMS,
+                MAX(o.UploadDate) AS UploadDate,
                 u.EmailID,
                 u.UserID,
                 u.FirstName,
                 u.LastName,
-                u.CompanyName
+                u.CompanyName,
+                (
+                    SELECT of.ShippingStatus
+                    FROM OrderFiles of
+                    WHERE of.OrderID = o.OrderID
+                    ORDER BY of.UploadDate DESC
+                    LIMIT 1
+                ) AS DealStatus
             FROM 
                 Orders o
-            INNER JOIN 
-                cornitos_master cm ON o.ProductID = cm.ID
-            INNER JOIN 
+            JOIN 
                 users u ON o.UserID = u.UserID
+            GROUP BY 
+                o.OrderID, u.EmailID, u.UserID, u.FirstName, u.LastName, u.CompanyName
             ORDER BY 
-                o.UploadDate DESC
+                UploadDate DESC
             LIMIT 3
         `;
 
@@ -2492,6 +2489,8 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
         res.status(500).json({ message: 'Internal Server Error', error: err.message });
     }
 });
+
+
 
 // API to Get Total Customer Count for Admin
 app.get('/Get-admin-customer', async (req, res) => {
