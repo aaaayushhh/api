@@ -633,6 +633,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
                 c_m.UNIT,
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
+                c_m.UNIT_MEASUREMENT,
                 cpe.UserID,
                 u.FirstName
             FROM
@@ -681,6 +682,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
                 c_m.UNIT,
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
+                c_m.UNIT_MEASUREMENT,
                 cpe.UserID,
                 u.FirstName
             FROM
@@ -738,6 +740,7 @@ app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, re
                 c_m.UNIT,
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
+                c_m.UNIT_MEASUREMENT,
                 o.UserID,
                 u.FirstName,
                 u.EmailID,
@@ -788,6 +791,7 @@ app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => 
                 c_m.UNIT,
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
+                c_m.UNIT_MEASUREMENT,
                 o.UserID,
                 u.FirstName,
                 u.EmailID,
