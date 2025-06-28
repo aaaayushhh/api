@@ -634,6 +634,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId", authMiddleware, a
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 c_m.UNIT_MEASUREMENT,
+                c_m.UNIT_MEASUREMENT_TYPE,
                 cpe.UserID,
                 u.FirstName
             FROM
@@ -683,6 +684,7 @@ app.get("/Get-container-place-enquiry-user-and-admin/:userId/:orderId?", async (
                 c_m.UNIT_PER_CTN,
                 c_m.WEIGHT_PER_PKT_GRAMS,
                 c_m.UNIT_MEASUREMENT,
+                c_m.UNIT_MEASUREMENT_TYPE,
                 cpe.UserID,
                 u.FirstName
             FROM
