@@ -1735,14 +1735,14 @@ app.get('/download-single-file/:userId/:orderId/:fileName', async (req, res) => 
 });
 
 
-app.delete('/delete-file/:userId/:orderId/:fileName', async (req, res) => {
-    const { userId, orderId, fileName } = req.params;
+app.delete('/delete-file/:userId/:orderId/:oid', async (req, res) => {
+    const { userId, orderId, oid } = req.params;
 
     try {
         const [result] = await pool.query(`
             DELETE FROM OrderFiles
-            WHERE UserID = ? AND OrderID = ? AND FileName = ?
-        `, [userId, orderId, fileName]);
+            WHERE UserID = ? AND OrderID = ? AND OID = ?
+        `, [userId, orderId, oid]);
 
         if (result.affectedRows === 0) {
             return res.status(404).json({
