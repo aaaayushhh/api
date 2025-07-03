@@ -1735,6 +1735,38 @@ app.get('/download-single-file/:userId/:orderId/:fileName', async (req, res) => 
 });
 
 
+app.delete('/delete-file/:userId/:orderId/:fileName', async (req, res) => {
+    const { userId, orderId, fileName } = req.params;
+
+    try {
+        const [result] = await pool.query(`
+            DELETE FROM OrderFiles
+            WHERE UserID = ? AND OrderID = ? AND FileName = ?
+        `, [userId, orderId, fileName]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "File not found or already deleted"
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "File deleted successfully"
+        });
+
+    } catch (error) {
+        console.error("Error deleting file:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete file",
+            error: error.message
+        });
+    }
+});
+
+
 // API route to get files data for a specific user and order
 app.get('/get-files-data/:userId/:orderId', async (req, res) => {
     const { userId, orderId } = req.params;
