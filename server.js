@@ -1701,6 +1701,40 @@ app.get('/download-order-files-zip/:userId/:orderId', async (req, res) => {
 });
 
 
+app.get('/download-single-file/:userId/:orderId/:fileName', async (req, res) => {
+    const { userId, orderId, fileName } = req.params;
+
+    try {
+        const [rows] = await pool.query(`
+            SELECT FileContent, FileType
+            FROM OrderFiles
+            WHERE UserID = ? AND OrderID = ? AND FileName = ?
+        `, [userId, orderId, fileName]);
+
+        if (rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "File not found"
+            });
+        }
+
+        const file = rows[0];
+
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.setHeader('Content-Type', file.FileType || 'application/octet-stream');
+
+        res.send(file.FileContent);
+    } catch (error) {
+        console.error("Error downloading single file:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to download file",
+            error: error.message
+        });
+    }
+});
+
+
 // API route to get files data for a specific user and order
 app.get('/get-files-data/:userId/:orderId', async (req, res) => {
     const { userId, orderId } = req.params;
