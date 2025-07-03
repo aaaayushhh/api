@@ -1564,7 +1564,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
     let {
         ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
         ProformaInvoiceNumber, CommercialInvoiceNumber,
-        CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination
+        CommercialInvoiceDate, ProformaInvoiceDate, DischargePort, FinalDestination, ContainerNumber
     } = req.body;
 
     if (!userId) {
@@ -1596,6 +1596,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                     CommercialInvoiceNumber = IF(? = '', CommercialInvoiceNumber, ?),
                     CommercialInvoiceDate = IF(? = '', CommercialInvoiceDate, ?),
                     ProformaInvoiceDate = IF(? = '', ProformaInvoiceDate, ?),
+                    ContainerNumber = IF(? = '', ContainerNumber, ?),
                     DischargePort = IF(? = '', DischargePort, ?),
                     FinalDestination = IF(? = '', FinalDestination, ?)
                 WHERE OrderID = ? AND UserID = ? AND DocumentType IS NULL
@@ -1609,6 +1610,7 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 CommercialInvoiceNumber, CommercialInvoiceNumber,
                 CommercialInvoiceDate, CommercialInvoiceDate,
                 ProformaInvoiceDate, ProformaInvoiceDate,
+                ContainerNumber, ContainerNumber,
                 DischargePort, DischargePort,
                 FinalDestination, FinalDestination,
                 orderId, userId
@@ -1619,12 +1621,12 @@ app.post('/upload-files-to-user/:orderId/:userId', store, async (req, res) => {
                 INSERT INTO OrderFiles (
                     OrderID, UserID, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
                     ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate,
-                    ProformaInvoiceDate, DischargePort, FinalDestination, UploadDate
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+                    ProformaInvoiceDate, DischargePort, FinalDestination, ContainerNumber, UploadDate
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             `, [
                 orderId, userId, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
                 ProformaInvoiceNumber, CommercialInvoiceNumber, CommercialInvoiceDate,
-                ProformaInvoiceDate, DischargePort, FinalDestination
+                ProformaInvoiceDate, DischargePort, FinalDestination, ContainerNumber
             ]);
         }
 
@@ -1740,7 +1742,7 @@ app.get('/get-shipment-details/:userId/:orderId', async (req, res) => {
         const [rows] = await pool.query(`
             SELECT OrderID, ShippingStatus, BLNumber, ShippingLines, ETA, ETD,
                    CommercialInvoiceNumber, CommercialInvoiceDate, ProformaInvoiceNumber,
-                   ProformaInvoiceDate, DischargePort, FinalDestination
+                   ProformaInvoiceDate, DischargePort, FinalDestination, ContainerNumber
             FROM OrderFiles
             WHERE UserID = ? AND OrderID = ? AND DocumentType IS NULL
         `, [userId, orderId]);
