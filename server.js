@@ -2967,7 +2967,7 @@ app.post("/update-enquiry-user-side", async (req, res) => {
                 throw new Error("Invalid update object");
             }
             await connection.execute(
-                "UPDATE container_place_enquiry SET UserStatus = ?, , UserRemarks = ? WHERE CPE_ID = ?",
+                "UPDATE container_place_enquiry SET UserStatus = ?, UserRemarks = ? WHERE CPE_ID = ?",
                 [status, remarks || "", cpeId]
             );
         }
