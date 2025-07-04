@@ -2955,6 +2955,7 @@ app.post("/update-enquiry", async (req, res) => {
 
 app.post("/update-enquiry-user-side", async (req, res) => {
     const { updates } = req.body;
+
     console.log("Received updates:", updates);
 
     if (!updates || !Array.isArray(updates)) {
@@ -2966,29 +2967,24 @@ app.post("/update-enquiry-user-side", async (req, res) => {
         await connection.beginTransaction();
 
         for (const { cpeId, status, remarks } of updates) {
-            if (!cpeId) {
-                throw new Error("Missing CPE ID");
-            }
+            if (!cpeId) continue;
 
-            const fields = [];
-            const values = [];
+            const query = `
+                UPDATE container_place_enquiry 
+                SET UserStatus = ?, UserRemarks = ? 
+                WHERE CPE_ID = ?`;
 
-            // Always update both fields, whether empty or not
-            fields.push("UserStatus = ?");
-            values.push(typeof status === "string" ? status : "");
+            const values = [status || "", remarks || "", cpeId];
+            console.log("Executing:", query, "with", values);
 
-            fields.push("UserRemarks = ?");
-            values.push(typeof remarks === "string" ? remarks : "");
-
-            values.push(cpeId);
-
-            const query = `UPDATE container_place_enquiry SET ${fields.join(", ")} WHERE CPE_ID = ?`;
             await connection.execute(query, values);
         }
-        res.json({ message: "All statuses updated successfully" });
+
+        await connection.commit();
+        res.json({ message: "All statuses and remarks updated successfully" });
     } catch (error) {
         await connection.rollback();
-        console.error("Error updating statuses:", error);
+        console.error("Error updating:", error);
         res.status(500).json({ message: "Server error" });
     } finally {
         connection.release();
