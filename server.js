@@ -736,6 +736,7 @@ app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, re
                 o.TotalRateInUSDFobIndia,
                 o.TotalNetWeight,
                 o.UserStatus,
+                o.UserRemarks,
                 c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
                 c_m.CATEGORY,
@@ -787,6 +788,7 @@ app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => 
                 o.TotalRateInUSDFobIndia,
                 o.TotalNetWeight,
                 o.UserStatus,
+                o.UserRemarks,
                 c_m.PRODUCT_DESCRIPTION,
                 c_m.SKU_CODE,
                 c_m.CATEGORY,
@@ -2281,7 +2283,7 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
             // Verify the data before inserting
             const selectQuery = `
-                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, UserStatus
+                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, UserStatus, UserRemarks
                 FROM container_place_enquiry
                 WHERE CPE_ID = ?
             `;
@@ -2295,8 +2297,8 @@ app.post('/convert-enquiry-to-order', async (req, res) => {
 
             // Insert the data into the Orders table using CPE_ID
             const insertQuery = `
-                INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, UserStatus)
-                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, UserStatus
+                INSERT INTO Orders (OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, UserStatus, UserRemarks)
+                SELECT DISTINCT OrderID, CPE_ID, CartonQty, ProductID, UserID, UploadDate, TotalQty, RatePerUnitUsd, RatePerCaseUSD, TotalRateInUSDFobIndia, TotalNetWeight, UserStatus, UserRemarks
                 FROM container_place_enquiry
                 WHERE CPE_ID = ?
             `;
