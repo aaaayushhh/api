@@ -2741,7 +2741,7 @@ module.exports = app;
 
 app.post("/send-enquiry-email", async (req, res) => {
     const { email } = req.body; // Email ID of the user
-    const adminEmail = "ayushsshah04@gmail.com"; // Hardcoded admin email
+    const adminEmail = "eximtrac@gmail.com"; // Hardcoded admin email
 
     if (!email) {
         return res.status(400).json({ message: "User email is required" });
@@ -2751,14 +2751,14 @@ app.post("/send-enquiry-email", async (req, res) => {
     let transporter = nodemailer.createTransport({
         service: "gmail",  // You can use your email provider (Gmail, Outlook, etc.)
         auth: {
-            user: "ayushsshah04@gmail.com",  // Replace with your email
-            pass: "wlfy yekg dvwq aqcq",  // Replace with your email app password
+            user: "eximtrac@gmail.com",  // Replace with your email
+            pass: "fbts pdal ioyw spbk",  // Replace with your email app password
         },
     });
 
     // Email for the user
     let userMailOptions = {
-        from: "ayushsshah04@gmail.com",
+        from: "eximtrac@gmail.com",
         to: email,
         subject: "Order Enquiry Placed",
         text: `Dear Customer,\n\nYour order enquiry has been placed successfully. We will get back to you shortly.\n\nBest Regards,\nEximtrac`,
@@ -2766,7 +2766,7 @@ app.post("/send-enquiry-email", async (req, res) => {
 
     // Email for the admin
     let adminMailOptions = {
-        from: "ayushsshah04@gmail.com",
+        from: "eximtrac@gmail.com",
         to: adminEmail,
         subject: "New Order Enquiry Received",
         text: `Hello Admin,\n\nA new order enquiry has been placed by the user: ${email}.\n\nPlease check the system for details.\n\nBest Regards,\nEximtrac`,
@@ -2795,7 +2795,7 @@ module.exports = app;
 
 app.post("/send-enquiry-update-email", async (req, res) => {
     const { email } = req.body;
-    const adminEmail = "ayushsshah04@gmail.com"; // Hardcoded admin email
+    const adminEmail = "eximtrac@gmail.com"; // Hardcoded admin email
 
     if (!email) {
         return res.status(400).json({ message: "User email is required" });
@@ -2804,13 +2804,13 @@ app.post("/send-enquiry-update-email", async (req, res) => {
     let transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-            user: "ayushsshah04@gmail.com",
-            pass: "wlfy yekg dvwq aqcq",  // App password
+            user: "eximtrac04@gmail.com",
+            pass: "fbts pdal ioyw spbk",  // App password
         },
     });
 
     let userMailOptions = {
-        from: "ayushsshah04@gmail.com",
+        from: "eximtrac@gmail.com",
         to: email,
         subject: "Enquiry Details Updated",
         text: `Dear Customer,\n\nYour order enquiry has been updated successfully as per your requirement. Please let us know if any query persists.\n\nBest Regards,\nEximtrac`,
@@ -2818,7 +2818,7 @@ app.post("/send-enquiry-update-email", async (req, res) => {
 
     // ✅ Add this block to define the missing variable
     let adminMailOptions = {
-        from: "ayushsshah04@gmail.com",
+        from: "eximtrac@gmail.com",
         to: adminEmail,
         subject: "User Enquiry Updated",
         text: `The enquiry for user ${email} has been updated and a notification email has been sent.`,
