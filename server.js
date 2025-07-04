@@ -2955,6 +2955,7 @@ app.post("/update-enquiry", async (req, res) => {
 
 app.post("/update-enquiry-user-side", async (req, res) => {
     const { updates } = req.body;
+    console.log("Received updates:", updates);
 
     if (!updates || !Array.isArray(updates)) {
         return res.status(400).json({ message: "Missing or invalid updates array" });
