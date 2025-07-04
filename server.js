@@ -2969,17 +2969,15 @@ app.post("/update-enquiry-user-side", async (req, res) => {
                 throw new Error("Missing CPE ID");
             }
 
-            // Build dynamic update fields
             const fields = [];
             const values = [];
 
-            // IMPORTANT: We want to explicitly save both status and remarks,
-            // even if empty strings (to remove previous values)
+            // Always update both fields, whether empty or not
             fields.push("UserStatus = ?");
-            values.push(status || "");
+            values.push(typeof status === "string" ? status : "");
 
             fields.push("UserRemarks = ?");
-            values.push(remarks || "");
+            values.push(typeof remarks === "string" ? remarks : "");
 
             values.push(cpeId);
 
