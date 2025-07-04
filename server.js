@@ -2966,24 +2966,20 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
         for (const { cpeId, status, remarks } of updates) {
             if (!cpeId) {
-                throw new Error("Invalid update object - missing CPE ID");
+                throw new Error("Missing CPE ID");
             }
 
-            // Build SQL dynamically based on available fields
+            // Build dynamic update fields
             const fields = [];
             const values = [];
 
-            if (status) {
-                fields.push("UserStatus = ?");
-                values.push(status);
-            }
+            // IMPORTANT: We want to explicitly save both status and remarks,
+            // even if empty strings (to remove previous values)
+            fields.push("UserStatus = ?");
+            values.push(status || "");
 
-            if (remarks !== undefined) {
-                fields.push("UserRemarks = ?");
-                values.push(remarks);
-            }
-
-            if (fields.length === 0) continue; // nothing to update
+            fields.push("UserRemarks = ?");
+            values.push(remarks || "");
 
             values.push(cpeId);
 
