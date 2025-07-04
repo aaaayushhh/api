@@ -2965,16 +2965,31 @@ app.post("/update-enquiry-user-side", async (req, res) => {
         await connection.beginTransaction();
 
         for (const { cpeId, status, remarks } of updates) {
-            if (!cpeId || !status) {
-                throw new Error("Invalid update object");
+            if (!cpeId) {
+                throw new Error("Invalid update object - missing CPE ID");
             }
-            await connection.execute(
-                "UPDATE container_place_enquiry SET UserStatus = ?, UserRemarks = ? WHERE CPE_ID = ?",
-                [status, remarks || "", cpeId]
-            );
-        }
 
-        await connection.commit();
+            // Build SQL dynamically based on available fields
+            const fields = [];
+            const values = [];
+
+            if (status) {
+                fields.push("UserStatus = ?");
+                values.push(status);
+            }
+
+            if (remarks !== undefined) {
+                fields.push("UserRemarks = ?");
+                values.push(remarks);
+            }
+
+            if (fields.length === 0) continue; // nothing to update
+
+            values.push(cpeId);
+
+            const query = `UPDATE container_place_enquiry SET ${fields.join(", ")} WHERE CPE_ID = ?`;
+            await connection.execute(query, values);
+        }
         res.json({ message: "All statuses updated successfully" });
     } catch (error) {
         await connection.rollback();
