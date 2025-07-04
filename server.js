@@ -2860,7 +2860,7 @@ app.post("/forgot-password", async (req, res) => {
         // **Send Reset Email**
         const transporter = nodemailer.createTransport({
             service: "gmail",
-            auth: { user: "ayushsshah04@gmail.com", pass: "wlfy yekg dvwq aqcq" },
+            auth: { user: "eximtrac@gmail.com", pass: "fbts pdal ioyw spbk" },
         });
 
         const mailOptions = {
