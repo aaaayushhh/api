@@ -2962,13 +2962,13 @@ app.post("/update-enquiry-user-side", async (req, res) => {
     try {
         await connection.beginTransaction();
 
-        for (const { cpeId, status } of updates) {
+        for (const { cpeId, status, remarks } of updates) {
             if (!cpeId || !status) {
                 throw new Error("Invalid update object");
             }
             await connection.execute(
-                "UPDATE container_place_enquiry SET UserStatus = ? WHERE CPE_ID = ?",
-                [status, cpeId]
+                "UPDATE container_place_enquiry SET UserStatus = ?, , UserRemarks = ? WHERE CPE_ID = ?",
+                [status, remarks || "", cpeId]
             );
         }
 
