@@ -2996,13 +2996,23 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
     const { orderId } = req.params;
     const { AdminRemarks: remarks } = req.body;
 
-    const connection = await db.getConnection(); // Get connection from pool
+    if (!Array.isArray(remarks) || remarks.length === 0) {
+        return res.status(400).json({ success: false, message: "Invalid or empty remarks array." });
+    }
+
+    let connection;
 
     try {
-        await connection.beginTransaction(); // Start transaction
+        connection = await pool.getConnection();
+        await connection.beginTransaction();
 
-        for (const { CPE_ID, AdminRemarks } of remarks) {
-            if (!CPE_ID) continue;
+        for (const remark of remarks) {
+            const { CPE_ID, AdminRemarks } = remark;
+
+            if (!CPE_ID) {
+                console.warn("Skipping item without CPE_ID:", remark);
+                continue;
+            }
 
             const query = `
                 UPDATE Orders 
@@ -3010,17 +3020,18 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
                 WHERE CPE_ID = ? AND orderId = ?`;
 
             const values = [AdminRemarks || "", CPE_ID, orderId];
-            console.log("Executing:", query, "with", values);
 
+            console.log("Executing query:", query.trim(), "with values:", values);
             await connection.execute(query, values);
         }
 
-        await connection.commit(); // Commit transaction
+        await connection.commit();
         res.json({ success: true, message: "Admin remarks saved successfully." });
+
     } catch (err) {
-        console.error("DB error:", err);
-        await connection.rollback(); // Roll back if something goes wrong
-        res.status(500).json({ success: false, message: "Database error" });
+        if (connection) await connection.rollback();
+        console.error("DB Error in /save-admin-remarks:", err.message);
+        res.status(500).json({ success: false, message: "Database error." });
     }
 });
 
