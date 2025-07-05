@@ -2804,7 +2804,7 @@ app.post("/send-enquiry-update-email", async (req, res) => {
     let transporter = nodemailer.createTransport({
         service: "gmail",
         auth: {
-            user: "eximtrac04@gmail.com",
+            user: "eximtrac@gmail.com",
             pass: "fbts pdal ioyw spbk",  // App password
         },
     });
