@@ -725,6 +725,7 @@ app.get("/Get-Order-data-user-and-admin/:userId", authMiddleware, async (req, re
 
         const query = `
             SELECT
+                o.OID,
                 o.CPE_ID,
                 o.CartonQty,
                 o.ProductID,
@@ -777,6 +778,7 @@ app.get("/Get-Order-data-user-and-admin/:userId/:orderId?", async (req, res) => 
 
         let query = `
             SELECT
+                o.OID,
                 o.CPE_ID,
                 o.CartonQty,
                 o.ProductID,
@@ -3007,19 +3009,19 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
         await connection.beginTransaction();
 
         for (const remark of remarks) {
-            const { SKU_CODE, AdminRemarks } = remark;
+            const { OID, AdminRemarks } = remark;
 
-            if (!SKU_CODE) {
-                console.warn("Skipping item without SKU CODE:", remark);
+            if (!OID) {
+                console.warn("Skipping item without OID:", remark);
                 continue;
             }
 
             const query = `
                 UPDATE Orders 
                 SET AdminRemarks = ? 
-                WHERE SKU_CODE = ? AND orderId = ?`;
+                WHERE OID = ? AND orderId = ?`;
 
-            const values = [AdminRemarks || "", SKU_CODE, orderId];
+            const values = [AdminRemarks || "", OID, orderId];
 
             console.log("Executing query:", query.trim(), "with values:", values);
             await connection.execute(query, values);
