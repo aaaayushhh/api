@@ -2994,6 +2994,27 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 });
 
 
+app.post('/save-admin-remarks/:orderId', async (req, res) => {
+    const { orderId } = req.params;
+    const { AdminRemarks } = req.body;
+
+    try {
+        for (const { CPE_ID, AdminRemarks } of remarks) {
+            await db.query(
+                'UPDATE Orders SET AdminRemarks = ? WHERE CPE_ID = ? AND orderId = ?',
+                [AdminRemarks, CPE_ID, orderId]
+            );
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error("DB error:", err);
+        res.status(500).json({ success: false, message: "Database error" });
+    }
+});
+
+
+
 
 
 const imagestorage = multer.memoryStorage();
