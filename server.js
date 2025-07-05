@@ -2996,7 +2996,7 @@ app.post("/update-enquiry-user-side", async (req, res) => {
 
 app.post('/save-admin-remarks/:orderId', async (req, res) => {
     const { orderId } = req.params;
-    const { AdminRemarks } = req.body;
+    const { AdminRemarks: remarks } = req.body;
 
     try {
         for (const { CPE_ID, AdminRemarks } of remarks) {
