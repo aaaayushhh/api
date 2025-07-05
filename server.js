@@ -3007,19 +3007,19 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
         await connection.beginTransaction();
 
         for (const remark of remarks) {
-            const { CPE_ID, AdminRemarks } = remark;
+            const { SKU_CODE, AdminRemarks } = remark;
 
-            if (!CPE_ID) {
-                console.warn("Skipping item without CPE_ID:", remark);
+            if (!SKU_CODE) {
+                console.warn("Skipping item without SKU CODE:", remark);
                 continue;
             }
 
             const query = `
                 UPDATE Orders 
                 SET AdminRemarks = ? 
-                WHERE CPE_ID = ? AND orderId = ?`;
+                WHERE SKU_CODE = ? AND orderId = ?`;
 
-            const values = [AdminRemarks || "", CPE_ID, orderId];
+            const values = [AdminRemarks || "", SKU_CODE, orderId];
 
             console.log("Executing query:", query.trim(), "with values:", values);
             await connection.execute(query, values);
@@ -3034,6 +3034,7 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
         res.status(500).json({ success: false, message: "Database error." });
     }
 });
+
 
 
 
