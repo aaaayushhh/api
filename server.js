@@ -2988,8 +2988,6 @@ app.post("/update-enquiry-user-side", async (req, res) => {
         await connection.rollback();
         console.error("Error updating:", error);
         res.status(500).json({ message: "Server error" });
-    } finally {
-        connection.release();
     }
 });
 
@@ -2998,22 +2996,33 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
     const { orderId } = req.params;
     const { AdminRemarks: remarks } = req.body;
 
+    const connection = await db.getConnection(); // Get connection from pool
+
     try {
+        await connection.beginTransaction(); // Start transaction
+
         for (const { CPE_ID, AdminRemarks } of remarks) {
-            await db.query(
-                'UPDATE Orders SET AdminRemarks = ? WHERE CPE_ID = ? AND orderId = ?',
-                [AdminRemarks, CPE_ID, orderId]
-            );
+            if (!CPE_ID) continue;
+
+            const query = `
+                UPDATE Orders 
+                SET AdminRemarks = ? 
+                WHERE CPE_ID = ? AND orderId = ?`;
+
+            const values = [AdminRemarks || "", CPE_ID, orderId];
+            console.log("Executing:", query, "with", values);
+
+            await connection.execute(query, values);
         }
 
-        res.json({ success: true });
+        await connection.commit(); // Commit transaction
+        res.json({ success: true, message: "Admin remarks saved successfully." });
     } catch (err) {
         console.error("DB error:", err);
+        await connection.rollback(); // Roll back if something goes wrong
         res.status(500).json({ success: false, message: "Database error" });
     }
 });
-
-
 
 
 
