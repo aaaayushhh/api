@@ -2871,7 +2871,7 @@ app.post("/forgot-password", async (req, res) => {
             from: process.env.EMAIL_USER,
             to: email,
             subject: "Reset Password",
-            html: `<p>Click <a href="http://deepaspheresolutions.co.in/reset-password/${resetToken}">here</a> to reset your password.</p>`,
+            html: `<p>Click <a href="http://indiangroceryexport.com/reset-password/${resetToken}">here</a> to reset your password.</p>`,
         };
 
         await transporter.sendMail(mailOptions);
