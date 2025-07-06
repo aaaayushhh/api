@@ -3144,6 +3144,36 @@ app.post("/create-order", async (req, res) => {
 
 
 
+app.get('/api/product-images/:SKU_CODE', (req, res) => {
+    const sku = req.params.SKU_CODE;
+    const sql = 'SELECT Image_ID, image_data FROM product_image WHERE SKU_CODE = ?';
+    db.query(sql, [sku], (err, results) => {
+        if (err) return res.status(500).send(err);
+        if (results.length === 0) return res.status(404).send('No images found');
+
+        // Convert each BLOB to base64
+        const images = results.map(img => ({
+            id: img.Image_ID,
+            base64: `data:image/jpeg;base64,${img.image_data.toString('base64')}`
+        }));
+
+        res.json(images);
+    });
+});
+
+
+app.delete('/api/product-image/:imageId', (req, res) => {
+    const imageId = req.params.imageId;
+    const sql = 'DELETE FROM product_image WHERE Image_ID = ?';
+    db.query(sql, [imageId], (err, result) => {
+        if (err) return res.status(500).send(err);
+        res.send({ message: 'Image deleted successfully' });
+    });
+});
+
+
+
+
 
 // Set the server to listen on PORT
 const PORT = process.env.PORT || 3000;
