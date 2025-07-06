@@ -149,6 +149,7 @@ const authMiddleware = require('./auth');
 const nodemailer = require("nodemailer");
 const archiver = require('archiver');
 const streamifier = require('streamifier');
+const fetch = require("node-fetch");
 
 app.use(cors({
     origin: "*",
@@ -1271,7 +1272,18 @@ app.post("/signup", async (req, res) => {
 
 // Login route
 app.post("/loginuser", async (req, res) => {
-    const { EmailID, Password } = req.body;
+    const { EmailID, Password, captchaToken } = req.body;
+
+    // Verify CAPTCHA
+    const secretKey = "6LdZlHkrAAAAAOwWW_uEDZoDSual3-Lf3YHXw7kw";
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+
+    const response = await fetch(verifyUrl, { method: 'POST' });
+    const captchaResult = await response.json();
+
+    if (!captchaResult.success) {
+        return res.status(400).json({ message: "Captcha verification failed." });
+    }
 
     try {
         const query = `
