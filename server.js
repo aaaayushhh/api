@@ -292,10 +292,10 @@ app.get('/GetAllProducts', async (req, res) => {
         queryParams.push(brand);
     }
     if (search) {
-        baseQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
-        countQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ?)`;
+        baseQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ? OR SKU_CODE LIKE ?)`;
+        countQuery += ` AND (PRODUCT_DESCRIPTION LIKE ? OR CATEGORY LIKE ? OR SUB_CATEGORY LIKE ? OR BRAND LIKE ? OR SKU_CODE LIKE ?)`;
         const s = `%${search}%`;
-        queryParams.push(s, s, s, s);
+        queryParams.push(s, s, s, s, s);
     }
 
     // Pagination
