@@ -1275,8 +1275,8 @@ app.post("/loginuser", async (req, res) => {
     const { EmailID, Password, captchaToken } = req.body;
 
     // Verify CAPTCHA
-    const secretKey = "6LdZlHkrAAAAAOwWW_uEDZoDSual3-Lf3YHXw7kw";
-    const verifyUrl = `https://indiangroceryexport.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+    const secretKey = "6LctoXkrAAAAAHxcJsmpMrLA9t1bEWwDyjgUIvG-";
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
 
     const response = await fetch(verifyUrl, { method: 'POST' });
     const captchaResult = await response.json();
