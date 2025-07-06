@@ -3153,7 +3153,7 @@ app.get("/api/product-images/:SKU_CODE", async (req, res) => {
 
     try {
         const [rows] = await pool.execute(
-            "SELECT Image_ID, image_data FROM product_image WHERE SKU_CODE = ?",
+            "SELECT Image_ID, image_data FROM product_images WHERE SKU_CODE = ?",
             [SKU_CODE]
         );
 
@@ -3183,7 +3183,7 @@ app.delete("/api/product-image/:imageId", async (req, res) => {
 
     try {
         const [result] = await pool.execute(
-            "DELETE FROM product_image WHERE Image_ID = ?",
+            "DELETE FROM product_images WHERE Image_ID = ?",
             [imageId]
         );
 
