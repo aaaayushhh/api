@@ -580,7 +580,7 @@ app.get("/Get-data-for-enquiry-page", async (req, res) => {
     }
 });
 
-app.get("/Get-data-for-admin-dash-enquiry-page", async (req, res) => {
+app.get("/Get-data-for-admin-dash-enquiry-page", authMiddleware, async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT DISTINCT
@@ -2583,7 +2583,7 @@ app.get('/Get-orders-data-user-side-user-dashboard/:userId', async (req, res) =>
 
 
 // API to Get Orders Data for Admin Dashboard
-app.get('/Get-orders-for-admin-dash', async (req, res) => {
+app.get('/Get-orders-for-admin-dash', authMiddleware, async (req, res) => {
     try {
         const query = `
             SELECT 
