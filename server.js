@@ -1476,38 +1476,52 @@ app.get("/get-customers", async (req, res) => {
 
 
 // Admin login route
-app.post('/adminlogin', async (req, res) => {
+app.post("/adminlogin", async (req, res) => {
     const { Username, Password } = req.body;
 
     try {
-        // Validate input
+        // Step 1: Input validation
         if (!Username || !Password) {
             return res.status(400).json({ message: 'Username and password are required' });
         }
 
+        // Step 2: Check if admin exists
         const query = `
-            SELECT * 
+            SELECT AdminID, Username, Password 
             FROM admin_login 
-            WHERE Username = ? AND Password = ?
+            WHERE Username = ?
         `;
+        const [results] = await pool.query(query, [Username]);
 
-        const [results] = await pool.query(query, [Username, Password]); // Use await here
-
-        if (results.length > 0) {
-            // Successful login
-            res.status(200).json({
-                message: 'Login Successful',
-                user: results[0], // Send the user details (optional)
-            });
-        } else {
-            // Invalid credentials
-            res.status(401).json({ message: 'Invalid username or password' });
+        const admin = results[0];
+        if (!admin) {
+            return res.status(401).json({ message: "Invalid username or password" });
         }
+
+        // Step 3: Compare password (assuming plain text for now)
+        if (Password !== admin.Password) {
+            return res.status(401).json({ message: "Invalid username or password" });
+        }
+
+        // Step 4: Generate JWT token for admin
+        const token = jwt.sign(
+            { AdminID: admin.AdminID, Username: admin.Username },
+            process.env.SECRET_KEY,
+            // { expiresIn: "1h" }
+        );
+
+        // Step 5: Respond with token and admin info
+        res.status(200).json({
+            message: "Admin login successful",
+            admin: { AdminID: admin.AdminID, Username: admin.Username },
+            token: token,
+        });
     } catch (err) {
-        console.error('Error during login:', err);
-        res.status(500).json({ message: 'Internal Server Error', error: err.message });
+        console.error("Error during admin login:", err);
+        res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 });
+
 
 // API endpoint to save contact messages
 app.post('/contact-us-messages', async (req, res) => {
