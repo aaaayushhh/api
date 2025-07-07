@@ -2623,7 +2623,7 @@ app.get('/Get-orders-for-admin-dash', async (req, res) => {
 
 
 // API to Get Total Customer Count for Admin
-app.get('/Get-admin-customer', async (req, res) => {
+app.get('/Get-admin-customer', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM users`;
         const [rows] = await pool.query(query);
@@ -2642,7 +2642,7 @@ app.get('/Get-admin-customer', async (req, res) => {
 });
 
 // API to Get Total Distinct Order Enquiry Count for Admin
-app.get('/Get-admin-enquiry', async (req, res) => {
+app.get('/Get-admin-enquiry', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT OrderID) AS TotalDistinctCount FROM container_place_enquiry`;
         const [rows] = await pool.query(query);
@@ -2661,7 +2661,7 @@ app.get('/Get-admin-enquiry', async (req, res) => {
 });
 
 // API to Get Total Order Count for Admin
-app.get('/Get-admin-order', async (req, res) => {
+app.get('/Get-admin-order', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM Orders`;
         const [rows] = await pool.query(query);
@@ -2680,7 +2680,7 @@ app.get('/Get-admin-order', async (req, res) => {
 });
 
 // API to Get Total Product Count for Admin
-app.get('/Get-admin-products', async (req, res) => {
+app.get('/Get-admin-products', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(*) AS TotalCount FROM cornitos_master`;
         const [rows] = await pool.query(query);
@@ -2699,7 +2699,7 @@ app.get('/Get-admin-products', async (req, res) => {
 });
 
 // API to Get Total Distinct Category Count for Admin
-app.get('/Get-admin-category', async (req, res) => {
+app.get('/Get-admin-category', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT CATEGORY) AS TotalCategories FROM cornitos_master`;
         const [rows] = await pool.query(query);
@@ -2718,7 +2718,7 @@ app.get('/Get-admin-category', async (req, res) => {
 });
 
 // API to Get Total Distinct Subcategory Count for Admin
-app.get('/Get-admin-subcategory', async (req, res) => {
+app.get('/Get-admin-subcategory', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT SUB_CATEGORY) AS TotalSubCategories FROM cornitos_master`;
         const [rows] = await pool.query(query);
@@ -2737,7 +2737,7 @@ app.get('/Get-admin-subcategory', async (req, res) => {
 });
 
 // API to Get Total Distinct Brand Count for Admin
-app.get('/Get-admin-brand', async (req, res) => {
+app.get('/Get-admin-brand', authMiddleware, async (req, res) => {
     try {
         const query = `SELECT COUNT(DISTINCT BRAND) AS TotalBrands FROM cornitos_master`;
         const [rows] = await pool.query(query);
