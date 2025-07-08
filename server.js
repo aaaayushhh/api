@@ -1397,7 +1397,7 @@ app.put("/admin-update-profile", async (req, res) => {
 
 
 
-app.delete("/delete-user/:userId", async (req, res) => {
+app.delete("/delete-user/:userId", authMiddleware, async (req, res) => {
     const { userId } = req.params;
 
     try {
@@ -1410,7 +1410,7 @@ app.delete("/delete-user/:userId", async (req, res) => {
 });
 
 
-app.get("/export-users", async (req, res) => {
+app.get("/export-users", authMiddleware, async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT 
@@ -1461,7 +1461,7 @@ app.get("/get-profile/:userId", async (req, res) => {
 });
 
 // Get customers route
-app.get("/get-customers", async (req, res) => {
+app.get("/get-customers", authMiddleware, async (req, res) => {
     try {
         const query = `SELECT UserID, EmailID, FirstName, LastName, CompanyName FROM users`;
 
