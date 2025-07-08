@@ -610,7 +610,7 @@ app.get("/Get-data-for-user-side-enquiry-page-user-dashboard/:userId", async (re
 });
 
 
-app.get("/Get-data-for-enquiry-page", async (req, res) => {
+app.get("/Get-data-for-enquiry-page", authMiddleware, async (req, res) => {
     try {
         const [rows] = await pool.query(`
             SELECT DISTINCT
@@ -2467,7 +2467,7 @@ app.post('/delete-enquiry-after-conversion', async (req, res) => {
 
 
 // API to Get Orders Data
-app.get('/Get-orders', async (req, res) => {
+app.get('/Get-orders', authMiddleware, async (req, res) => {
     try {
         if (!pool) throw new Error("Database connection is not initialized");
 
