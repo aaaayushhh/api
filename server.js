@@ -382,7 +382,7 @@ app.get("/GetCategoryandSubCategory", authMiddleware, async (req, res) => {
 // });
 
 
-app.get("/GetCategory", authMiddleware, async (req, res) => {
+app.get("/GetCategory", async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT DISTINCT CATEGORY AS name FROM cornitos_master");
         res.json({ msg: "Data Fetched Successfully", data: rows });
@@ -393,7 +393,7 @@ app.get("/GetCategory", authMiddleware, async (req, res) => {
 });
 
 // Fetch subcategories
-app.get("/GetSubCategory", authMiddleware, async (req, res) => {
+app.get("/GetSubCategory", async (req, res) => {
     try {
         const { category } = req.query;
         let query = "SELECT DISTINCT SUB_CATEGORY FROM cornitos_master";
@@ -411,7 +411,7 @@ app.get("/GetSubCategory", authMiddleware, async (req, res) => {
 });
 
 // Fetch brands
-app.get("/GetBrand", authMiddleware, async (req, res) => {
+app.get("/GetBrand", async (req, res) => {
     try {
         const { category, subCategory } = req.query;
         let query = "SELECT DISTINCT BRAND FROM cornitos_master";
@@ -434,6 +434,61 @@ app.get("/GetBrand", authMiddleware, async (req, res) => {
         res.status(500).json({ msg: "Error Fetching Data", error: err.message });
     }
 });
+
+
+app.get("/AdminGetCategory", authMiddleware, async (req, res) => {
+    try {
+        const [rows] = await pool.query("SELECT DISTINCT CATEGORY AS name FROM cornitos_master");
+        res.json({ msg: "Data Fetched Successfully", data: rows });
+    } catch (err) {
+        console.error("Query Failed:", err);
+        res.status(500).json({ msg: "Error Fetching Data", error: err.message });
+    }
+});
+
+// Fetch subcategories
+app.get("/AdminGetSubCategory", authMiddleware, async (req, res) => {
+    try {
+        const { category } = req.query;
+        let query = "SELECT DISTINCT SUB_CATEGORY FROM cornitos_master";
+        let params = [];
+        if (category) {
+            query += " WHERE CATEGORY = ?";
+            params.push(category);
+        }
+        const [rows] = await pool.query(query, params);
+        res.json({ msg: "Data Fetched Successfully", data: rows });
+    } catch (err) {
+        console.error("Query Failed:", err);
+        res.status(500).json({ msg: "Error Fetching Data", error: err.message });
+    }
+});
+
+// Fetch brands
+app.get("/AdminGetBrand", authMiddleware, async (req, res) => {
+    try {
+        const { category, subCategory } = req.query;
+        let query = "SELECT DISTINCT BRAND FROM cornitos_master";
+        let params = [];
+        if (category || subCategory) {
+            query += " WHERE";
+            if (category) {
+                query += " CATEGORY = ?";
+                params.push(category);
+            }
+            if (subCategory) {
+                query += (category ? " AND" : "") + " SUB_CATEGORY = ?";
+                params.push(subCategory);
+            }
+        }
+        const [rows] = await pool.query(query, params);
+        res.json({ msg: "Data Fetched Successfully", data: rows });
+    } catch (err) {
+        console.error("Query Failed:", err);
+        res.status(500).json({ msg: "Error Fetching Data", error: err.message });
+    }
+});
+
 
 // Fetch category, subcategory, and brand
 app.get("/GetFilter", async (req, res) => {
