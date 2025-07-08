@@ -1344,7 +1344,7 @@ app.put("/profile", authMiddleware, async (req, res) => {
 });
 
 
-app.put("/admin-update-profile", async (req, res) => {
+app.put("/admin-update-profile", authMiddleware, async (req, res) => {
     const {
         UserID, // changed from `userId`
         FirstName,
@@ -1442,7 +1442,7 @@ app.get("/export-users", authMiddleware, async (req, res) => {
 
 
 // GET API to fetch user profile
-app.get("/get-profile/:userId", async (req, res) => {
+app.get("/get-profile/:userId", authMiddleware, async (req, res) => {
     const { userId } = req.params;
 
     try {
