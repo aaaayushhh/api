@@ -411,7 +411,7 @@ app.get("/GetSubCategory", async (req, res) => {
 });
 
 // Fetch brands
-app.get("/GetBrand", async (req, res) => {
+app.get("/GetBrand", authMiddleware, async (req, res) => {
     try {
         const { category, subCategory } = req.query;
         let query = "SELECT DISTINCT BRAND FROM cornitos_master";
@@ -1060,7 +1060,7 @@ app.put("/update-subcategories", authMiddleware, async (req, res) => {
 });
 
 // Update a brand
-app.put("/update-brand", async (req, res) => {
+app.put("/update-brand", authMiddleware, async (req, res) => {
     const { oldName, newName } = req.body;
 
     if (!oldName || !newName) {
