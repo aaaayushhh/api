@@ -393,7 +393,7 @@ app.get("/GetCategory", authMiddleware, async (req, res) => {
 });
 
 // Fetch subcategories
-app.get("/GetSubCategory", async (req, res) => {
+app.get("/GetSubCategory", authMiddleware, async (req, res) => {
     try {
         const { category } = req.query;
         let query = "SELECT DISTINCT SUB_CATEGORY FROM cornitos_master";
@@ -1089,7 +1089,7 @@ app.put("/update-brand", authMiddleware, async (req, res) => {
 
 // Update a product
 // Express and MySQL assumed already set up
-app.put("/update-product", async (req, res) => {
+app.put("/update-product", authMiddleware, async (req, res) => {
     const {
         oldSKUCode,      // For locating the correct product to update
         SKUCode,
@@ -3104,7 +3104,7 @@ app.post("/upload-images", imageupload.array("images"), authMiddleware, async (r
 
 
 // Example using Express
-app.delete('/admin-products-delete/:ID', async (req, res) => {
+app.delete('/admin-products-delete/:ID', authMiddleware, async (req, res) => {
     const { ID } = req.params;
     try {
         const result = await pool.query('DELETE FROM cornitos_master WHERE ID = ?', [ID]);
@@ -3122,7 +3122,7 @@ app.delete('/admin-products-delete/:ID', async (req, res) => {
 });
 
 
-app.post('/admin-products-delete-multiple', async (req, res) => {
+app.post('/admin-products-delete-multiple', authMiddleware, async (req, res) => {
     try {
         const { ID } = req.body;
 
@@ -3170,7 +3170,7 @@ app.post("/create-order", async (req, res) => {
 
 
 
-app.get("/api/product-images/:SKU_CODE", async (req, res) => {
+app.get("/api/product-images/:SKU_CODE", authMiddleware, async (req, res) => {
     const { SKU_CODE } = req.params;
 
     if (!SKU_CODE) {
@@ -3200,7 +3200,7 @@ app.get("/api/product-images/:SKU_CODE", async (req, res) => {
 });
 
 
-app.delete("/api/product-image/:imageId", async (req, res) => {
+app.delete("/api/product-image/:imageId", authMiddleware, async (req, res) => {
     const { imageId } = req.params;
 
     if (!imageId) {
