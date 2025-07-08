@@ -331,7 +331,7 @@ app.get('/GetAllProducts', async (req, res) => {
 
 
 
-app.get("/GetCategoryandSubCategory", async (req, res) => {
+app.get("/GetCategoryandSubCategory", authMiddleware, async (req, res) => {
     try {
         const [rows] = await pool.query("select distinct CATEGORY, SUB_CATEGORY from cornitos_master");
         res.json({ msg: "Data Fetched Successfully", data: rows });
@@ -1033,7 +1033,7 @@ app.put("/update-categories", authMiddleware, async (req, res) => {
 });
 
 // Update a subcategory
-app.put("/update-subcategories", async (req, res) => {
+app.put("/update-subcategories", authMiddleware, async (req, res) => {
     const { oldName, newName } = req.body;
 
     if (!oldName || !newName) {
