@@ -382,7 +382,7 @@ app.get("/GetCategoryandSubCategory", async (req, res) => {
 // });
 
 
-app.get("/GetCategory", async (req, res) => {
+app.get("/GetCategory", authMiddleware, async (req, res) => {
     try {
         const [rows] = await pool.query("SELECT DISTINCT CATEGORY AS name FROM cornitos_master");
         res.json({ msg: "Data Fetched Successfully", data: rows });
@@ -1010,7 +1010,7 @@ app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (r
 });
 
 // Update a category
-app.put("/update-categories", async (req, res) => {
+app.put("/update-categories", authMiddleware, async (req, res) => {
     const { oldName, newName } = req.body;
 
     if (!oldName || !newName) {
@@ -1990,7 +1990,7 @@ app.use((req, res, next) => {
 });
 
 // Route to handle CSV upload
-app.post('/upload-csv', (req, res) => {
+app.post('/upload-csv', authMiddleware, (req, res) => {
     upload(req, res, async function (err) {
         if (err instanceof multer.MulterError) {
             return res.status(400).json({ message: err.message });
@@ -3071,7 +3071,7 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
 const imagestorage = multer.memoryStorage();
 const imageupload = multer({ storage: imagestorage });
 
-app.post("/upload-images", imageupload.array("images"), async (req, res) => {
+app.post("/upload-images", imageupload.array("images"), authMiddleware, async (req, res) => {
     try {
         const files = req.files;
 
