@@ -3331,14 +3331,14 @@ app.post("/create-admin", async (req, res) => {
 app.get("/get-all-admins", async (req, res) => {
     try {
         const [admins] = await pool.query(`
-      SELECT al.AdminID, al.Username, ar.PageName
-      FROM admin_login al
-      LEFT JOIN admin_roles ar ON al.AdminID = ar.AdminID
-    `);
+            SELECT al.AdminID, al.Username, ar.RoleName
+            FROM admin_login al
+            LEFT JOIN admin_roles ar ON al.AdminID = ar.AdminID
+        `);
 
         // Group roles by AdminID
         const grouped = {};
-        admins.forEach(({ AdminID, Username, PageName }) => {
+        admins.forEach(({ AdminID, Username, RoleName }) => {
             if (!grouped[AdminID]) {
                 grouped[AdminID] = {
                     AdminID,
@@ -3346,7 +3346,7 @@ app.get("/get-all-admins", async (req, res) => {
                     Roles: [],
                 };
             }
-            if (PageName) grouped[AdminID].Roles.push(PageName);
+            if (RoleName) grouped[AdminID].Roles.push(RoleName);
         });
 
         const finalList = Object.values(grouped);
@@ -3356,6 +3356,7 @@ app.get("/get-all-admins", async (req, res) => {
         res.status(500).json({ success: false, error: err.message });
     }
 });
+
 
 app.put("/update-admin/:id", async (req, res) => {
     const adminId = req.params.id;
@@ -3368,8 +3369,8 @@ app.put("/update-admin/:id", async (req, res) => {
         await pool.query(`DELETE FROM admin_roles WHERE AdminID = ?`, [adminId]);
 
         // Insert new roles
-        for (const page of Roles) {
-            await pool.query(`INSERT INTO admin_roles (AdminID, PageName) VALUES (?, ?)`, [adminId, page]);
+        for (const rolename of Roles) {
+            await pool.query(`INSERT INTO admin_roles (AdminID, RoleName) VALUES (?, ?)`, [adminId, rolename]);
         }
 
         res.json({ success: true, message: "Admin updated" });
