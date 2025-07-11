@@ -3289,10 +3289,8 @@ app.post("/create-admin", async (req, res) => {
     }
 
     try {
-        const conn = await mysql.createConnection(dbConfig);
-
         // Insert into admin_login
-        const [result] = await conn.execute(
+        const [result] = await pool.execute(
             "INSERT INTO admin_login (Username, Password) VALUES (?, ?)",
             [username, password]
         );
@@ -3301,7 +3299,7 @@ app.post("/create-admin", async (req, res) => {
 
         // Insert into admin_roles
         const insertRoles = roles.map(role =>
-            conn.execute(
+            pool.execute(
                 "INSERT INTO admin_roles (AdminID, RoleName) VALUES (?, ?)",
                 [adminID, role]
             )
@@ -3310,7 +3308,7 @@ app.post("/create-admin", async (req, res) => {
         await Promise.all(insertRoles);
 
         res.json({ message: "Admin user created successfully" });
-        conn.end();
+        pool.end();
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
