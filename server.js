@@ -3281,6 +3281,43 @@ app.delete("/api/product-image/:imageId", authMiddleware, async (req, res) => {
 
 
 
+app.post("/create-admin", async (req, res) => {
+    const { username, password, roles } = req.body;
+
+    if (!username || !password || !roles || roles.length === 0) {
+        return res.status(400).json({ message: "All fields are required" });
+    }
+
+    try {
+        const conn = await mysql.createConnection(dbConfig);
+
+        // Insert into admin_login
+        const [result] = await conn.execute(
+            "INSERT INTO admin_login (Username, Password) VALUES (?, ?)",
+            [username, password]
+        );
+
+        const adminID = result.insertId;
+
+        // Insert into admin_roles
+        const insertRoles = roles.map(role =>
+            conn.execute(
+                "INSERT INTO admin_roles (AdminID, RoleName) VALUES (?, ?)",
+                [adminID, role]
+            )
+        );
+
+        await Promise.all(insertRoles);
+
+        res.json({ message: "Admin user created successfully" });
+        conn.end();
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+});
+
+
 
 
 // Set the server to listen on PORT
