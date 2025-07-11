@@ -3328,6 +3328,70 @@ app.post("/create-admin", async (req, res) => {
 });
 
 
+app.get("/get-all-admins", async (req, res) => {
+    try {
+        const [admins] = await pool.query(`
+      SELECT al.AdminID, al.Username, ar.PageName
+      FROM admin_login al
+      LEFT JOIN admin_roles ar ON al.AdminID = ar.AdminID
+    `);
+
+        // Group roles by AdminID
+        const grouped = {};
+        admins.forEach(({ AdminID, Username, PageName }) => {
+            if (!grouped[AdminID]) {
+                grouped[AdminID] = {
+                    AdminID,
+                    Username,
+                    Roles: [],
+                };
+            }
+            if (PageName) grouped[AdminID].Roles.push(PageName);
+        });
+
+        const finalList = Object.values(grouped);
+        res.json({ success: true, data: finalList });
+    } catch (err) {
+        console.error("Error fetching admins:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.put("/update-admin/:id", async (req, res) => {
+    const adminId = req.params.id;
+    const { Username, Password, Roles } = req.body;
+
+    try {
+        await pool.query(`UPDATE admin_login SET Username = ?, Password = ? WHERE AdminID = ?`, [Username, Password, adminId]);
+
+        // Delete old roles
+        await pool.query(`DELETE FROM admin_roles WHERE AdminID = ?`, [adminId]);
+
+        // Insert new roles
+        for (const page of Roles) {
+            await pool.query(`INSERT INTO admin_roles (AdminID, PageName) VALUES (?, ?)`, [adminId, page]);
+        }
+
+        res.json({ success: true, message: "Admin updated" });
+    } catch (err) {
+        console.error("Update error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+app.delete("/delete-admin/:id", async (req, res) => {
+    const adminId = req.params.id;
+
+    try {
+        await pool.query(`DELETE FROM admin_roles WHERE AdminID = ?`, [adminId]);
+        await pool.query(`DELETE FROM admin_login WHERE AdminID = ?`, [adminId]);
+        res.json({ success: true, message: "Admin deleted" });
+    } catch (err) {
+        console.error("Delete error:", err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 
 
 // Set the server to listen on PORT
