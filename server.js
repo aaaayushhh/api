@@ -3308,7 +3308,6 @@ app.post("/create-admin", async (req, res) => {
         await Promise.all(insertRoles);
 
         res.json({ message: "Admin user created successfully" });
-        pool.end();
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Server error" });
