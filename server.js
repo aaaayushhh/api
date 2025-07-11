@@ -1065,7 +1065,7 @@ app.delete('/delete-container-item/:productId/:userId', authMiddleware, async (r
 });
 
 // Update a category
-app.put("/update-categories", authMiddleware, async (req, res) => {
+app.put("/update-categories", async (req, res) => {
     const { oldName, newName } = req.body;
 
     if (!oldName || !newName) {
@@ -1088,7 +1088,7 @@ app.put("/update-categories", authMiddleware, async (req, res) => {
 });
 
 // Update a subcategory
-app.put("/update-subcategories", authMiddleware, async (req, res) => {
+app.put("/update-subcategories", async (req, res) => {
     const { oldName, newName } = req.body;
 
     if (!oldName || !newName) {
@@ -1115,7 +1115,7 @@ app.put("/update-subcategories", authMiddleware, async (req, res) => {
 });
 
 // Update a brand
-app.put("/update-brand", authMiddleware, async (req, res) => {
+app.put("/update-brand", async (req, res) => {
     const { oldName, newName } = req.body;
 
     if (!oldName || !newName) {
@@ -1144,7 +1144,7 @@ app.put("/update-brand", authMiddleware, async (req, res) => {
 
 // Update a product
 // Express and MySQL assumed already set up
-app.put("/update-product", authMiddleware, async (req, res) => {
+app.put("/update-product", async (req, res) => {
     const {
         oldSKUCode,      // For locating the correct product to update
         SKUCode,
@@ -2045,7 +2045,7 @@ app.use((req, res, next) => {
 });
 
 // Route to handle CSV upload
-app.post('/upload-csv', authMiddleware, (req, res) => {
+app.post('/upload-csv', (req, res) => {
     upload(req, res, async function (err) {
         if (err instanceof multer.MulterError) {
             return res.status(400).json({ message: err.message });
@@ -3126,7 +3126,7 @@ app.post('/save-admin-remarks/:orderId', async (req, res) => {
 const imagestorage = multer.memoryStorage();
 const imageupload = multer({ storage: imagestorage });
 
-app.post("/upload-images", imageupload.array("images"), authMiddleware, async (req, res) => {
+app.post("/upload-images", imageupload.array("images"), async (req, res) => {
     try {
         const files = req.files;
 
@@ -3159,7 +3159,7 @@ app.post("/upload-images", imageupload.array("images"), authMiddleware, async (r
 
 
 // Example using Express
-app.delete('/admin-products-delete/:ID', authMiddleware, async (req, res) => {
+app.delete('/admin-products-delete/:ID', async (req, res) => {
     const { ID } = req.params;
     try {
         const result = await pool.query('DELETE FROM cornitos_master WHERE ID = ?', [ID]);
@@ -3177,7 +3177,7 @@ app.delete('/admin-products-delete/:ID', authMiddleware, async (req, res) => {
 });
 
 
-app.post('/admin-products-delete-multiple', authMiddleware, async (req, res) => {
+app.post('/admin-products-delete-multiple', async (req, res) => {
     try {
         const { ID } = req.body;
 
@@ -3225,7 +3225,7 @@ app.post("/create-order", async (req, res) => {
 
 
 
-app.get("/api/product-images/:SKU_CODE", authMiddleware, async (req, res) => {
+app.get("/api/product-images/:SKU_CODE", async (req, res) => {
     const { SKU_CODE } = req.params;
 
     if (!SKU_CODE) {
