@@ -1535,48 +1535,61 @@ app.post("/adminlogin", async (req, res) => {
     const { Username, Password } = req.body;
 
     try {
-        // Step 1: Input validation
+        // Step 1: Validate input
         if (!Username || !Password) {
             return res.status(400).json({ message: 'Username and password are required' });
         }
 
-        // Step 2: Check if admin exists
-        const query = `
-            SELECT AdminID, Username, Password 
-            FROM admin_login 
-            WHERE Username = ?
-        `;
-        const [results] = await pool.query(query, [Username]);
+        // Step 2: Check user existence
+        const [results] = await pool.query(
+            `SELECT AdminID, Username, Password FROM admin_login WHERE Username = ?`,
+            [Username]
+        );
 
         const admin = results[0];
         if (!admin) {
             return res.status(401).json({ message: "Invalid username or password" });
         }
 
-        // Step 3: Compare password (assuming plain text for now)
+        // Step 3: Check password (plain-text comparison for now)
         if (Password !== admin.Password) {
             return res.status(401).json({ message: "Invalid username or password" });
         }
 
-        // Step 4: Generate JWT token for admin
+        // ✅ Step 4: Fetch role names for this AdminID
+        const [roleResults] = await pool.query(
+            `SELECT RoleName FROM admin_roles WHERE AdminID = ?`,
+            [admin.AdminID]
+        );
+
+        const roles = roleResults.map(row => row.RoleName); // ['Admin', 'Dashboard Page', ...]
+
+        // Step 5: Create JWT token
         const token = jwt.sign(
-            { AdminID: admin.AdminID, Username: admin.Username },
+            {
+                AdminID: admin.AdminID,
+                Username: admin.Username,
+                // roles: roles // ✅ Include roles in token if you want (optional)
+            },
             process.env.SECRET_KEY,
             // { expiresIn: "1h" }
         );
 
-        // Step 5: Respond with token and admin info
+        // ✅ Step 6: Send success response with roles
         res.status(200).json({
             message: "Admin login successful",
-            admin: { AdminID: admin.AdminID, Username: admin.Username },
-            token: token,
+            admin: {
+                AdminID: admin.AdminID,
+                Username: admin.Username
+            },
+            roles: roles, // ✅ Send roles
+            token: token
         });
     } catch (err) {
         console.error("Error during admin login:", err);
         res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 });
-
 
 // API endpoint to save contact messages
 app.post('/contact-us-messages', async (req, res) => {
