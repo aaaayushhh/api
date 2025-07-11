@@ -3268,7 +3268,7 @@ app.get("/api/product-images/:SKU_CODE", async (req, res) => {
 });
 
 
-app.delete("/api/product-image/:imageId", authMiddleware, async (req, res) => {
+app.delete("/api/product-image-delete/:imageId", async (req, res) => {
     const { imageId } = req.params;
 
     if (!imageId) {
